@@ -1,0 +1,3 @@
+exe=../NNCNNLabeler
+
+nohup $exe -l -train ../data/phone_data/phone_train.txt -dev ../data/phone_data/phone_train.txt -test ../data/phone_data/phone_test.txt -option ../data/phone_data/option.debug 2>&1 &
