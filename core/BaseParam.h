@@ -1,0 +1,44 @@
+/*
+ * BaseParam.h
+ *
+ *  Created on: Jul 25, 2016
+ *      Author: mason
+ */
+
+#ifndef BasePARAM_H_
+#define BasePARAM_H_
+
+#include "cpu_matrix.h"
+
+#if USE_GPU
+	#include "gpu_matrix.h"
+#endif
+
+struct BaseParam {
+#if USE_GPU
+	cpu_matrix cval, cgrad;
+	gpu_matrix val, grad;
+#else
+	cpu_matrix val, grad;
+#endif
+  public:
+    virtual inline void initial(int outDim, int inDim) = 0;
+    virtual inline void updateAdagrad(dtype alpha, dtype reg, dtype eps) = 0;
+   /* virtual inline void updateAdam(dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps) = 0;*/
+    virtual inline int outDim() = 0;
+    virtual inline int inDim() = 0;
+    virtual inline void clearGrad() = 0;
+#if USE_GPU
+	virtual inline void dump2gpu() { val = cval; }
+	virtual inline void dump2cpu() { cval = val; }
+#endif
+
+    // Choose one point randomly
+    virtual inline void randpoint(int& idx, int &idy) = 0;
+    virtual inline dtype squareGradNorm() = 0;
+    virtual inline void rescaleGrad(dtype scale) = 0;
+    virtual inline void save(std::ofstream &os)const = 0;
+    virtual inline void load(std::ifstream &is) = 0;
+};
+
+#endif /* BasePARAM_H_ */
