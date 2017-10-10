@@ -102,7 +102,7 @@ void FinalizeGPU()
 {
     cnmemStatus_t status = cnmemFinalize();
     if (status != CNMEM_STATUS_SUCCESS) {
-        std::cout << cnmemGetErrorString(status) << std::endl;
+        //std::cout << cnmemGetErrorString(status) << std::endl;
         //abort();
     }
 }
@@ -197,7 +197,7 @@ void gpu_matrix::delloc(){
     if(v){
         cnmemStatus_t status = cnmemFree(v, NULL);
         if (status != CNMEM_STATUS_SUCCESS) {
-            std::cout << cnmemGetErrorString(status) << std::endl;
+            //std::cout << cnmemGetErrorString(status) << std::endl;
         }
     }
     v = NULL;
@@ -686,29 +686,45 @@ void gpu_matrix::special_add2(const gpu_matrix &a, const gpu_matrix &b, const gp
 // thrust::transform(ptr0, ptr0 + size, ptr1, xxx());
 // }
 
+__global__ void get_max_index(dtype** &matrixes, dtype** mask, int size) {
+    int max_iter = -1;
+    int i = threadIdx.x;
+    for (int j = 0; j<size; j++) {
+        if ((max_iter == -1) || (matrixes[j][i] > matrixes[max_iter][i])) {
+            max_iter = j;
+        }
+    }
+    //mask is on gpu
+    mask[max_iter][i] = 1.0;
+}
+
+dtype **copy_matrix_ptrs_to_array(vector<gpu_matrix> &matrix) {
+    int size = matrix.size();
+    std::cout << "size:" << size << std::endl;
+    void *ptr;
+    int mem_size = sizeof(dtype*) * size;
+    std::cout << "mem_size:" << mem_size << std::endl;
+    cnmemStatus_t status = cnmemMalloc(&ptr, mem_size, NULL);
+    dtype **vs = static_cast<dtype**>(ptr);
+    assert(CNMEM_STATUS_SUCCESS == status);
+    dtype **cpu_mem = (dtype**)malloc(mem_size);
+    assert(cpu_mem != NULL);
+    for (int i = 0; i < size; ++i) {
+        cpu_mem[i] = matrix.at(i).v;
+    }
+    CCE(cudaMemcpy(vs, cpu_mem, mem_size, cudaMemcpyHostToDevice));
+
+    free(cpu_mem);
+    return vs;
+}
 
 void max_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask) {
     int dim = ins[0].size;
-    int size = ins.size();
-    vector<cpu_matrix> t_ins;// needn't delloc manually
-
-    t_ins.resize(ins.size());
-    for (int i = 0; i<t_ins.size(); i++) {
-        t_ins[i].init(ins[i].row, ins[i].col);
-        t_ins[i] = ins[i];
-    }
-
-
-    for (int i = 0; i<dim; i++) {
-        int max_iter = -1;
-        for (int j = 0; j<size; j++) {
-            if ((max_iter == -1) || (t_ins[j].get(0, i) > t_ins[max_iter].get(0, i))) {
-                max_iter = j;
-            }
-        }
-        //mask is on gpu
-        mask[max_iter].assign(0, i, 1.0);
-    }
+    dtype **ins_arr = copy_matrix_ptrs_to_array(ins);
+    dtype **mask_arr = copy_matrix_ptrs_to_array(mask);
+    get_max_index<<<1, dim>>>(ins_arr, mask_arr, ins.size());
+    assert(cnmemFree(ins_arr, NULL) == CNMEM_STATUS_SUCCESS);
+    assert(cnmemFree(mask_arr, NULL) == CNMEM_STATUS_SUCCESS);
 }
 
 void min_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask) {
