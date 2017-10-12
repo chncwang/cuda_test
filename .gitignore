@@ -1,3 +1,9 @@
 build/
 *.out
 NNCNNLabeler
+CMakeCache.txt
+CMakeFiles/
+Makefile
+cmake_install.cmake
+*.swp
+*.a
