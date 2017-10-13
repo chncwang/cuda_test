@@ -689,6 +689,7 @@ void gpu_matrix::special_add2(const gpu_matrix &a, const gpu_matrix &b, const gp
 __global__ void get_max_index(dtype** &matrixes, dtype** mask, int size) {
     int max_iter = -1;
     int i = threadIdx.x;
+    printf("i:%d\n", i);
     for (int j = 0; j<size; j++) {
         if ((max_iter == -1) || (matrixes[j][i] > matrixes[max_iter][i])) {
             max_iter = j;
@@ -721,7 +722,9 @@ dtype **copy_matrix_ptrs_to_array(vector<gpu_matrix> &matrix) {
 void max_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask) {
     int dim = ins[0].size;
     dtype **ins_arr = copy_matrix_ptrs_to_array(ins);
+    std::cout << "ins copied" << std::endl;
     dtype **mask_arr = copy_matrix_ptrs_to_array(mask);
+    std::cout << "mask copied" << std::endl;
     get_max_index<<<1, dim>>>(ins_arr, mask_arr, ins.size());
     assert(cnmemFree(ins_arr, NULL) == CNMEM_STATUS_SUCCESS);
     assert(cnmemFree(mask_arr, NULL) == CNMEM_STATUS_SUCCESS);
