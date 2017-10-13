@@ -24,8 +24,6 @@ class ConcatNode : public Node {
 
   public:
     ConcatNode() : Node() {
-        inDims.clear();
-        ins.clear();
         node_type = "concat";
     }
 
@@ -42,7 +40,7 @@ class ConcatNode : public Node {
 
         ins.clear();
         for (int i = 0; i < x.size(); i++) {
-            ins.push_back(x[i]);
+            ins.push_back(std::move(x[i]));
         }
 
         degree = 0;
