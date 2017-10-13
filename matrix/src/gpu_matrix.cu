@@ -689,14 +689,14 @@ void gpu_matrix::special_add2(const gpu_matrix &a, const gpu_matrix &b, const gp
 __global__ void get_max_index(dtype** &matrixes, dtype** mask, int size) {
     int max_iter = -1;
     int i = threadIdx.x;
-    printf("i:%d\n", i);
     for (int j = 0; j<size; j++) {
         if ((max_iter == -1) || (matrixes[j][i] > matrixes[max_iter][i])) {
             max_iter = j;
         }
     }
     //mask is on gpu
-    mask[max_iter][i] = 1.0;
+    //mask[max_iter][i] = 1.0;
+    printf("maxIter:%f\n", max_iter);
 }
 
 dtype **copy_matrix_ptrs_to_array(vector<gpu_matrix> &matrix) {
@@ -706,16 +706,14 @@ dtype **copy_matrix_ptrs_to_array(vector<gpu_matrix> &matrix) {
     int mem_size = sizeof(dtype*) * size;
     std::cout << "mem_size:" << mem_size << std::endl;
     cnmemStatus_t status = cnmemMalloc(&ptr, mem_size, NULL);
-    dtype **vs = static_cast<dtype**>(ptr);
     assert(CNMEM_STATUS_SUCCESS == status);
+    dtype **vs = static_cast<dtype**>(ptr);
     dtype **cpu_mem = (dtype**)malloc(mem_size);
-    assert(cpu_mem != NULL);
     for (int i = 0; i < size; ++i) {
         cpu_mem[i] = matrix.at(i).v;
     }
     CCE(cudaMemcpy(vs, cpu_mem, mem_size, cudaMemcpyHostToDevice));
 
-    free(cpu_mem);
     return vs;
 }
 
@@ -726,6 +724,7 @@ void max_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask) {
     dtype **mask_arr = copy_matrix_ptrs_to_array(mask);
     std::cout << "mask copied" << std::endl;
     get_max_index<<<1, dim>>>(ins_arr, mask_arr, ins.size());
+    checkCudaErrors(cudaDeviceSynchronize());
     assert(cnmemFree(ins_arr, NULL) == CNMEM_STATUS_SUCCESS);
     assert(cnmemFree(mask_arr, NULL) == CNMEM_STATUS_SUCCESS);
 }
