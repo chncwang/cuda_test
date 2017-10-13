@@ -79,6 +79,11 @@ public:
 	inline const dtype* operator[](const int icol)const{ return v+icol*row; }
 	void transpose(const gpu_matrix &rhs); 
 	// void transpose();
+	
+	//
+	void add(const gpu_matrix &rhs, dtype scale);
+	//
+	
 	void add(const gpu_matrix &a, const gpu_matrix &b);
 	void sub(const gpu_matrix &a, const gpu_matrix &b);
 	void multiply(const gpu_matrix &a, const gpu_matrix &b);
@@ -220,6 +225,22 @@ public:
 	}
 };
 
+void SparseParam_Update_Adam(gpu_matrix& grad, 
+							gpu_matrix &val, 
+							gpu_matrix &aux_mean, 
+							gpu_matrix &aux_square, 
+							gpu_matrix &last_update,
+							vector<int>& ids,
+							dtype belta1, 
+							dtype belta2, 
+							dtype alpha, 
+							dtype reg, 
+							dtype eps
+							) ;
+void Param_Update_Adam(gpu_matrix& grad, gpu_matrix &val, gpu_matrix &aux_mean, gpu_matrix &aux_square, dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps, int iter);
+void Accumulate_Addition_Multi(vector<gpu_matrix*> &out, vector<gpu_matrix*> &in1, vector<gpu_matrix*> &in2);
+void Multi(vector<gpu_matrix*> &out, vector<gpu_matrix*> &in1, vector<gpu_matrix*> &in2);
+void Addition(vector<gpu_matrix*> &out, vector<gpu_matrix*> &in1, vector<gpu_matrix*> &in2);
 void concatenate(vector<gpu_matrix*> &in, int stride, vector<gpu_matrix*> &out);
 void max_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask);
 void min_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask);

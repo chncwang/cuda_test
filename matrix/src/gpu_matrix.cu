@@ -1077,4 +1077,221 @@ void concatenate(vector<gpu_matrix*> &in, int stride, vector<gpu_matrix*> &out) 
     delete [] len;
 }
 
+__global__  void kernel_addition(dtype **srcs1, dtype **srcs2, dtype **trgs, int n, int dim){
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j =  blockIdx.y * blockDim.y + threadIdx.y; // col-index.
+	
+	if(i<n && j<dim){
+		trgs[i][j] = srcs1[i][j] + srcs2[i][j];
+	}
+}
 
+void Addition(vector<gpu_matrix*> &out, vector<gpu_matrix*> &in1, vector<gpu_matrix*> &in2) {
+	assert(out.size() == in1.size());
+	assert(in1.size() == in2.size());
+	int nSize = in1.size();
+	int dim = in1[0]->size;
+	
+	vector<dtype*> locs(nSize*3);
+	for(int i=0; i<nSize; i++) {
+		locs[i] = out[i]->v;
+	}
+	for(int i=0; i<nSize; i++) {
+		locs[i+nSize] = in1[i]->v;
+	}
+	for(int i=0; i<nSize; i++) {
+		locs[i+nSize*2] = in2[i]->v;
+	}
+	
+	void *ptr;
+	assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&ptr, sizeof(dtype*) * (locs.size()), NULL));
+	dtype **trgs = static_cast<dtype**>(ptr);
+	CCE(cudaMemcpy(trgs, &(locs)[0], sizeof(dtype**) * locs.size(), cudaMemcpyHostToDevice));
+	
+	dtype **srcs1 = trgs + nSize;
+	dtype **srcs2 = trgs + nSize*2;
+	
+	
+	dim3 dimBlock(32, 32);
+	dim3 dimGrid(n_blocks(nSize, 32), n_blocks(dim, 32));
+	kernel_addition<<<dimGrid, dimBlock>>>(srcs1, srcs2, trgs, nSize, dim);
+	assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
+}
+
+
+
+__global__  void kernel_multi(dtype **srcs1, dtype **srcs2, dtype **trgs, int n, int dim){
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j =  blockIdx.y * blockDim.y + threadIdx.y; // col-index.
+	
+	if(i<n && j<dim){
+		trgs[i][j] = srcs1[i][j] * srcs2[i][j];
+	}
+}
+
+void Multi(vector<gpu_matrix*> &out, vector<gpu_matrix*> &in1, vector<gpu_matrix*> &in2) {
+	assert(out.size() == in1.size());
+	assert(in1.size() == in2.size());
+	int nSize = in1.size();
+	int dim = in1[0]->size;
+	
+	vector<dtype*> locs(nSize*3);
+	for(int i=0; i<nSize; i++) {
+		locs[i] = out[i]->v;
+	}
+	for(int i=0; i<nSize; i++) {
+		locs[i+nSize] = in1[i]->v;
+	}
+	for(int i=0; i<nSize; i++) {
+		locs[i+nSize*2] = in2[i]->v;
+	}
+	
+	void *ptr;
+	assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&ptr, sizeof(dtype*) * (locs.size()), NULL));
+	dtype **trgs = static_cast<dtype**>(ptr);
+	CCE(cudaMemcpy(trgs, &(locs)[0], sizeof(dtype**) * locs.size(), cudaMemcpyHostToDevice));
+	
+	dtype **srcs1 = trgs + nSize;
+	dtype **srcs2 = trgs + nSize*2;
+	
+	
+	dim3 dimBlock(32, 32);
+	dim3 dimGrid(n_blocks(nSize, 32), n_blocks(dim, 32));
+	kernel_multi<<<dimGrid, dimBlock>>>(srcs1, srcs2, trgs, nSize, dim);
+	assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
+}
+
+
+__global__  void kernel_accumulate_addition_multi(dtype **srcs1, dtype **srcs2, dtype **trgs, int n, int dim){
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j =  blockIdx.y * blockDim.y + threadIdx.y; // col-index.
+	
+	if(i<n && j<dim){
+		trgs[i][j] += srcs1[i][j] * srcs2[i][j];
+	}
+}
+
+void Accumulate_Addition_Multi(vector<gpu_matrix*> &out, vector<gpu_matrix*> &in1, vector<gpu_matrix*> &in2){
+	assert(out.size() == in1.size());
+	assert(in1.size() == in2.size());
+	int nSize = in1.size();
+	int dim = in1[0]->size;
+	
+	vector<dtype*> locs(nSize*3);
+	for(int i=0; i<nSize; i++) {
+		locs[i] = out[i]->v;
+	}
+	for(int i=0; i<nSize; i++) {
+		locs[i+nSize] = in1[i]->v;
+	}
+	for(int i=0; i<nSize; i++) {
+		locs[i+nSize*2] = in2[i]->v;
+	}
+
+	
+	void *ptr;
+	assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&ptr, sizeof(dtype*) * (locs.size()), NULL));
+	dtype **trgs = static_cast<dtype**>(ptr);
+	CCE(cudaMemcpy(trgs, &(locs)[0], sizeof(dtype**) * locs.size(), cudaMemcpyHostToDevice));
+	
+	dtype **srcs1 = trgs + nSize;
+	dtype **srcs2 = trgs + nSize*2;
+	
+	dim3 dimBlock(32, 32);
+	dim3 dimGrid(n_blocks(nSize, 32), n_blocks(dim, 32));
+	kernel_accumulate_addition_multi<<<dimGrid, dimBlock>>>(srcs1, srcs2, trgs, nSize, dim);
+	assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
+}
+
+
+__global__ void kernel_param_update_adam(dtype *g, dtype *v, dtype *mean, dtype *square, int row, int col, dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps, dtype lr_t) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j =  blockIdx.y * blockDim.y + threadIdx.y; 
+	
+	if(i<row && j<col) {
+		int index = j*row + i;
+		if(col > 1 && row >1){  
+			g[index] = g[index] + v[index]*reg;
+		}
+		mean[index] = belta1 * mean[index] + (1-belta1)*g[index];
+		square[index] = belta2*square[index] + (1-belta2)*g[index]*g[index];
+		v[index] = v[index] - mean[index] * lr_t / sqrt((square[index] + eps));
+	}
+}
+
+void Param_Update_Adam(gpu_matrix& grad, gpu_matrix &val, gpu_matrix &aux_mean, gpu_matrix &aux_square, dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps, int iter) {
+	
+	int row = val.row;
+	int col = val.col;
+	
+	dim3 dimBlock(32, 32);
+	dim3 dimGrid(n_blocks(row, 32), n_blocks(col, 32));
+	dtype lr_t = alpha * sqrt(1 - pow(belta2, iter + 1)) / (1 - pow(belta1, iter + 1));
+	kernel_param_update_adam<<<dimGrid, dimBlock>>>(grad.v, val.v, aux_mean.v, aux_square.v, row,  col, belta1, belta2, alpha, reg, eps, lr_t);
+}
+
+
+__global__ void kernel_sparseparam_update_adam(dtype *g, dtype *v, dtype *mean, dtype *square, dtype* last_update, int* ids , int row, int col, dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps) {
+	int i = blockIdx.x * blockDim.x + threadIdx.x;
+	int j =  blockIdx.y * blockDim.y + threadIdx.y; 
+	
+	//if(i<row && j<n && indexers[ids[j]])
+	if(i<row && j<col) {
+		if(ids[j] == 1){
+			int index = j*row + i;
+			g[index] = g[index] + v[index]*reg;
+			mean[index] = belta1 * mean[index] + (1-belta1)*g[index];
+			square[index] = belta2*square[index] + (1-belta2)*g[index]*g[index];
+			
+			dtype lr_t = alpha * sqrt(1 - pow(belta2, last_update[j] + 1)) / (1 - pow(belta1, last_update[j] + 1));;
+			
+			v[index] = v[index] - mean[index] * lr_t / sqrt((square[index] + eps));
+			
+			 last_update[j] += 1;
+		}
+	}
+}
+
+void SparseParam_Update_Adam(gpu_matrix& grad, 
+							gpu_matrix &val, 
+							gpu_matrix &aux_mean, 
+							gpu_matrix &aux_square, 
+							gpu_matrix &last_update,
+							vector<int>& ids,
+							dtype belta1, 
+							dtype belta2, 
+							dtype alpha, 
+							dtype reg, 
+							dtype eps
+							)  
+{
+	int *ptr = NULL;
+	assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&ptr, sizeof(int) * (ids.size()), NULL));
+	
+	
+	CCE(cudaMemcpy(ptr, &(ids)[0], sizeof(int) * (ids.size()), cudaMemcpyHostToDevice));
+							
+	int row = val.row;
+	int col = val.col;
+	
+	dim3 dimBlock(32, 32);
+	dim3 dimGrid(n_blocks(row, 32), n_blocks(col, 32));
+	
+	kernel_sparseparam_update_adam<<<dimGrid, dimBlock>>>(grad.v, val.v, aux_mean.v, aux_square.v, last_update.v, ptr, row, col, belta1, belta2, alpha, reg, eps);
+	assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
+}
+
+__global__ void ker_add(dtype *v, dtype scale, int n) {
+	int id = blockIdx.x * blockDim.x + threadIdx.x;
+	
+	if(id < n) {
+		v[id] += n;
+	}
+} 
+ 
+ 
+void gpu_matrix::add(const gpu_matrix &rhs, dtype scale) {
+	dim3 dimBlock(32);
+	dim3 dimGrid(n_blocks(size, 32));
+	ker_add<<<dimGrid, dimBlock>>>(rhs.v, scale, rhs.size);
+}

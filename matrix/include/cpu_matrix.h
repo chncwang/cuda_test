@@ -97,7 +97,7 @@ public:
 	cpu_matrix& operator = (const cpu_matrix &rhs);
 	cpu_matrix& operator = (const gpu_matrix &rhs);
 	
-	/*inline dtype* operator[](const int icol) { 
+	inline dtype* operator[](const int icol) { 
 		if (col == 1 && icol != 0) { 
 			std::cout << "err"; 
 			return NULL;
@@ -114,7 +114,7 @@ public:
 		else {
 			return v + icol*row;
 		}
-	}*/
+	}
 
 	void transpose(const cpu_matrix &rhs);
 	// void transpose();
@@ -194,6 +194,10 @@ public:
 
 	void big_copy_small(int offset, const cpu_matrix &rhs) {  //this[offset:rhs.size] = rhs[0:size]
 		Vec(v + offset, rhs.size) = Vec(rhs.v, rhs.size);
+	}
+	
+	void small_copy_big(const cpu_matrix &rhs, int offset) {
+		Vec(v, size) = Vec(rhs.v + offset, size);
 	}
 
 	void short_add_long(const cpu_matrix &a, const cpu_matrix &b, int offset) {
