@@ -4,3 +4,4 @@ NNCNNLabeler
 Makefile
 cmake_install.cmake
 CMakeFiles/
+*.a
