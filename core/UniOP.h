@@ -335,102 +335,54 @@ class UniExecute :public Execute {
 	int derivate_function;
     bool bTrain;
 
-  public:
-    // inline void  forward() {
-        // int count = batch.size();
-		// ty.resize(count);
-		// for (int idx = 0; idx < count; idx++) {
-			// UniNode* ptr = (UniNode*)batch[idx];
-			// ty[idx].resize(outDim, 1);
-			// ptr->compute(ty[idx]);
-			// ptr->forward_drop(bTrain);
-		// }
-    // }
-
-	inline void  forward() {
-		//  *** time test ***
-		ofstream out("time", ios::app);
-	    auto start = std::chrono::high_resolution_clock::now();
+public:
+    inline void  forward() {
+        ofstream out("time", ios::app);
+        auto start = std::chrono::high_resolution_clock::now();
 #if USE_GPU
-		int count = batch.size();
-		x.init(inDim, count);
-		b.init(outDim, count);
-		ty.init(outDim, count);
-		y.init(outDim, count);
+        int count = batch.size();
+        x.init(inDim, count);
+        b.init(outDim, count);
+        ty.init(outDim, count);
+        y.init(outDim, count);
 
-		// cout << "Uni" << endl;
-	
-		//out << "in" << inDim << " out" << outDim << " count" << count << std::endl;*/
-		
-		vector<gpu_matrix*> x_vec(count);
-		vector<gpu_matrix*> b_vec(count);
-		
-	
-		for (int idx = 0; idx < count; idx++) {
-			
-			UniNode* ptr = (UniNode*)batch[idx];
-			x_vec[idx] = &(ptr->in->val);
-		
-			
-			 // UniNode* ptr = (UniNode*)batch[idx];
-			 // x.mat_copy_vec(idx, ptr->in->val);
-			
-			
-			/* for (int idy = 0; idy < inDim; idy++) {
-			x[idx][idy] = ptr->in->val[idy];
-			}*/
-			
-			if (param->bUseB) {
-				b_vec[idx] = &(param->b.val);
-				
-				
-				// b.mat_copy_vec(idx, param->b.val);
-				
-				
-				/*for (int idy = 0; idy < outDim; idy++) {
-				b[idx][idy] = param->b.val.v[idy];
-				}*/
-			}
-		}
-		x.mat_combine_from_vecs(x_vec);
-		if(param->bUseB) {
-			b.mat_combine_from_vecs(b_vec);
-		}
-		
-		
-		ty.product(1, 0, false, false, param->W.val, x);
-		/*ty.mat() = param->W.val.mat() * x.mat();*/
+        vector<gpu_matrix*> x_vec(count);
+        vector<gpu_matrix*> b_vec(count);
+        for (int idx = 0; idx < count; idx++) {
+            UniNode* ptr = (UniNode*)batch[idx];
+            x_vec[idx] = &(ptr->in->val);
+            if (param->bUseB) {
+                b_vec[idx] = &(param->b.val);
+            }
+        }
+        x.mat_combine_from_vecs(x_vec);
+        if(param->bUseB) {
+            b.mat_combine_from_vecs(b_vec);
+        }
 
-		if (param->bUseB) {
-			ty.add(ty, b);
-			/*ty.vec() = ty.vec() + b.vec();*/
-		}
 
-		y.activate(ty, activate_function);
-		/*y.vec() = ty.vec().unaryExpr(ptr_fun(activate));*/
-		
-		vector<gpu_matrix*> val_vec(count);
-		for (int idx = 0; idx < count; idx++) {
-			UniNode* ptr = (UniNode*)batch[idx];
-			val_vec[idx] = &(ptr->val);
-			// ptr->val.vec_copy_mat(y, idx);
-			
-			/* for (int idy = 0; idy < outDim; idy++) {
-			ptr->val[idy] = y[idx][idy];
-			}*/
-			// ptr->forward_drop(bTrain);
-		}
-		
-		y.vec_separate_from_mat(val_vec);
-		
-		
-		
-		for (int idx = 0; idx < count; idx++) {
-			UniNode* ptr = (UniNode*)batch[idx];
-			ptr->forward_drop(bTrain);
-		}
+        ty.product(1, 0, false, false, param->W.val, x);
+
+        if (param->bUseB) {
+            ty.add(ty, b);
+        }
+
+        y.activate(ty, activate_function);
+
+        vector<gpu_matrix*> val_vec(count);
+        for (int idx = 0; idx < count; idx++) {
+            UniNode* ptr = (UniNode*)batch[idx];
+            val_vec[idx] = &(ptr->val);
+        }
+
+        y.vec_separate_from_mat(val_vec);
+
+        for (int idx = 0; idx < count; idx++) {
+            UniNode* ptr = (UniNode*)batch[idx];
+            ptr->forward_drop(bTrain);
+        }
 #else
-		int count = batch.size();
+        int count = batch.size();
         x.init(inDim, count);
         b.init(outDim, count);
         ty.init(outDim, count);
@@ -439,344 +391,295 @@ class UniExecute :public Execute {
 
         for (int idx = 0; idx < count; idx++) {
             UniNode* ptr = (UniNode*)batch[idx];
-			x.mat_copy_vec(idx, ptr->in->val);
+            x.mat_copy_vec(idx, ptr->in->val);
             if (param->bUseB) {
-				b.mat_copy_vec(idx, param->b.val);
+                b.mat_copy_vec(idx, param->b.val);
             }
         }
 
-		ty.product(1, 0, false, false, param->W.val, x);
+        ty.product(1, 0, false, false, param->W.val, x);
 
         if (param->bUseB) {
-			ty.self_add(b);
+            ty.self_add(b);
         }
 
-		y.activate(ty, activate_function);
+        y.activate(ty, activate_function);
 
         for (int idx = 0; idx < count; idx++) {
             UniNode* ptr = (UniNode*)batch[idx];
-			ptr->val.vec_copy_mat(y, idx);
+            ptr->val.vec_copy_mat(y, idx);
             ptr->forward_drop(bTrain);
         }
 #endif	
-		auto end = std::chrono::high_resolution_clock::now();
-		out << "uni-forward " << std::chrono::duration<double>(end - start).count() << endl; 
-	}
+        auto end = std::chrono::high_resolution_clock::now();
+        out << "uni-forward " << std::chrono::duration<double>(end - start).count() << endl; 
+    }
 
-
-	// inline void backward() {
-		// int count = batch.size();
-		// for (int idx = 0; idx < count; idx++) {
-			// UniNode *ptr = (UniNode*)batch[idx];
-			// ptr->backward_drop();
-// #if USE_GPU
-			// gpu_matrix lty;
-// #else
-			// cpu_matrix lty;
-// #endif
-			// lty.resize(outDim, 1);
-			// ptr->backward(ty[idx], lty);
-		// }
-
-	// }
     inline void backward() {
-		ofstream out("time", ios::app);
-	    auto start = std::chrono::high_resolution_clock::now();
+        ofstream out("time", ios::app);
+        auto start = std::chrono::high_resolution_clock::now();
 #if USE_GPU
         int count = batch.size();
-		gpu_matrix lx, lty, ly;
+        gpu_matrix lx, lty, ly;
         lx.init(inDim, count);
         lty.init(outDim, count);
         ly.init(outDim, count);
 
-		vector<gpu_matrix*> ly_vec(count);
+        vector<gpu_matrix*> ly_vec(count);
 
-		
-			
+
+
         for (int idx = 0; idx < count; idx++) {
             UniNode* ptr = (UniNode*)batch[idx];
             ptr->backward_drop();
-          /*  for (int idy = 0; idy < outDim; idy++) {
-                ly[idx][idy] = ptr->loss[idy];
-            }*/
-			
-			
-			//ly.mat_copy_vec(idx, ptr->loss);
-			
-			ly_vec[idx] = &(ptr->loss);
+            ly_vec[idx] = &(ptr->loss);
         }
-		ly.mat_combine_from_vecs(ly_vec);
+        ly.mat_combine_from_vecs(ly_vec);
 
 
-		gpu_matrix tmp;
-		tmp.init(outDim, count);
-		tmp.dactivate(ty, y, derivate_function);
-		lty.multiply(ly, tmp);
-        /*lty.vec() = ly.vec() * ty.vec().binaryExpr(y.vec(), ptr_fun(derivate));*/
+        gpu_matrix tmp;
+        tmp.init(outDim, count);
+        tmp.dactivate(ty, y, derivate_function);
+        lty.multiply(ly, tmp);
 
-		param->W.grad.product(1, 1, false, true, lty, x);
-        /*param->W.grad.mat() += lty.mat() * x.mat().transpose();*/
+        param->W.grad.product(1, 1, false, true, lty, x);
 
         if (param->bUseB) {
-            // for (int idx = 0; idx < count; idx++) {
-				// param->b.grad.vec_add_mat(param->b.grad, lty, idx);
-                // /*for (int idy = 0; idy < outDim; idy++) {
-                    // param->b.grad.v[idy] += lty[idx][idy];
-                // }*/
-            // }
-			lty.vec_accumulate_from_mat(&(param->b.grad));
+            lty.vec_accumulate_from_mat(&(param->b.grad));
         }
 
-		lx.product(1, 1, true, false, param->W.val, lty);
-        /*lx.mat() += param->W.val.mat().transpose() * lty.mat();*/
+        lx.product(1, 1, true, false, param->W.val, lty);
 
-		vector<gpu_matrix*> loss_vec(count);
+        vector<gpu_matrix*> loss_vec(count);
         for (int idx = 0; idx < count; idx++) {
             UniNode* ptr = (UniNode*)batch[idx];
-			loss_vec[idx] = &(ptr->in->loss);
-			// ptr->in->loss.vec_add_mat(ptr->in->loss, lx, idx);
-           /* for (int idy = 0; idy < inDim; idy++) {
-                ptr->in->loss[idy] += lx[idx][idy];
-            }*/
+            loss_vec[idx] = &(ptr->in->loss);
         }
-		lx.vec_accumulate_from_mat(loss_vec);
-    
+        lx.vec_accumulate_from_mat(loss_vec);
 #else 
-		int count = batch.size();
+        int count = batch.size();
         cpu_matrix lx, lty, ly;
         lx.init(inDim, count);
         lty.init(outDim, count);
         ly.init(outDim, count);
 
-		
+
         for (int idx = 0; idx < count; idx++) {
             UniNode* ptr = (UniNode*)batch[idx];
             ptr->backward_drop();
-			ly.mat_copy_vec(idx, ptr->loss);
-          /*  for (int idy = 0; idy < outDim; idy++) {
-                ly[idx][idy] = ptr->loss.v[idy];
-            }*/
+            ly.mat_copy_vec(idx, ptr->loss);
         }
 
-		/*lty.vec() = ly.vec() * ty.vec().binaryExpr(y.vec(), ptr_fun(derivate));*/
-		cpu_matrix ctmp;
-		ctmp.init(outDim, count);
-		ctmp.dactivate(ty, y, derivate_function);
-		lty.multiply(ly, ctmp);
-        
-		param->W.grad.product(1, 1, false, true, lty, x);
-       /* param->W.grad.mat() += lty.mat() * x.mat().transpose();*/
+        cpu_matrix ctmp;
+        ctmp.init(outDim, count);
+        ctmp.dactivate(ty, y, derivate_function);
+        lty.multiply(ly, ctmp);
+
+        param->W.grad.product(1, 1, false, true, lty, x);
 
         if (param->bUseB) {
             for (int idx = 0; idx < count; idx++) {
-				param->b.grad.vec_add_mat(param->b.grad, lty, idx);
-               /* for (int idy = 0; idy < outDim; idy++) {
-                    param->b.grad.v[idy] += lty[idx][idy];
-                }*/
+                param->b.grad.vec_add_mat(param->b.grad, lty, idx);
             }
         }
 
-		lx.product(1, 1, true, false, param->W.val, lty);
-       /* lx.mat() += param->W.val.mat().transpose() * lty.mat();*/
+        lx.product(1, 1, true, false, param->W.val, lty);
 
         for (int idx = 0; idx < count; idx++) {
             UniNode* ptr = (UniNode*)batch[idx];
-			ptr->in->loss.vec_add_mat(ptr->in->loss, lx, idx);
-            /*for (int idy = 0; idy < inDim; idy++) {
-                ptr->in->loss.v[idy] += lx[idx][idy];
-            }*/
+            ptr->in->loss.vec_add_mat(ptr->in->loss, lx, idx);
         }
 #endif
-		auto end = std::chrono::high_resolution_clock::now();
-		out << "uni-backward " << std::chrono::duration<double>(end - start).count() << endl; 
-	}
+        auto end = std::chrono::high_resolution_clock::now();
+        out << "uni-backward " << std::chrono::duration<double>(end - start).count() << endl; 
+    }
 
 };
 
 
 class LinearExecute :public Execute {
-public:
+    public:
 #if USE_GPU
-	gpu_matrix x, y;
+        gpu_matrix x, y;
 #else
-	cpu_matrix x, y;
+        cpu_matrix x, y;
 #endif
-	int inDim, outDim, count;
-	UniParams* param;
-	bool bTrain;
+        int inDim, outDim, count;
+        UniParams* param;
+        bool bTrain;
 
-public:
-	// inline void  forward() {
-		// count = batch.size();
-		// for (int idx = 0; idx < count; idx++) {
-			// LinearNode* ptr = (LinearNode*)batch[idx];
-			// ptr->compute();
-			// ptr->forward_drop(bTrain);
-		// }
-	// }
-	  inline void  forward() {
-		  // std::cout << "linear" << endl;
-		  ofstream out("time", ios::app);
-		  auto start = std::chrono::high_resolution_clock::now();
+    public:
+        // inline void  forward() {
+        // count = batch.size();
+        // for (int idx = 0; idx < count; idx++) {
+        // LinearNode* ptr = (LinearNode*)batch[idx];
+        // ptr->compute();
+        // ptr->forward_drop(bTrain);
+        // }
+        // }
+        inline void  forward() {
+            // std::cout << "linear" << endl;
+            ofstream out("time", ios::app);
+            auto start = std::chrono::high_resolution_clock::now();
 #if USE_GPU
-	      count = batch.size();
-	      x.init(inDim, count);
-	      y.init(outDim, count);
+            count = batch.size();
+            x.init(inDim, count);
+            y.init(outDim, count);
 
-		  vector<gpu_matrix*> x_vec(count);
-		  // ofstream out("linear", ios::app);
-		  //out << "in" << inDim << " out" << outDim << " count" << count << std::endl;*/
-	      for (int idx = 0; idx < count; idx++) {
-			  LinearNode* ptr = (LinearNode*)batch[idx]; 
-			  x_vec[idx] = &(ptr->in->val);
-			  // ptr->in->val.save(out);
-	           // LinearNode* ptr = (LinearNode*)batch[idx]; 
-			   // x.mat_copy_vec(idx, ptr->in->val);
-			  
-			  
-	         /* for (int idy = 0; idy < inDim; idy++) {
-	              x[idx][idy] = ptr->in->val[idy];
-	          }*/
-	      }
-		  x.mat_combine_from_vecs(x_vec);
+            vector<gpu_matrix*> x_vec(count);
+            // ofstream out("linear", ios::app);
+            //out << "in" << inDim << " out" << outDim << " count" << count << std::endl;*/
+            for (int idx = 0; idx < count; idx++) {
+                LinearNode* ptr = (LinearNode*)batch[idx]; 
+                x_vec[idx] = &(ptr->in->val);
+                // ptr->in->val.save(out);
+                // LinearNode* ptr = (LinearNode*)batch[idx]; 
+                // x.mat_copy_vec(idx, ptr->in->val);
 
-		  y.product(1, 0, false, false, param->W.val, x);
-	     /* y.mat() = param->W.val.mat() * x.mat();*/
 
-		 vector<gpu_matrix*> val_vec(count);
-		 for (int idx = 0; idx < count; idx++) {
-			LinearNode* ptr = (LinearNode*)batch[idx];
-			val_vec[idx] = &(ptr->val);
-		 }
-		 
-		 y.vec_separate_from_mat(val_vec);
-		 
-	      for (int idx = 0; idx < count; idx++) {
-	          LinearNode* ptr = (LinearNode*)batch[idx];
-		  	 //ptr->val.vec_copy_mat(y, idx);
-	         /* for (int idy = 0; idy < outDim; idy++) {
-	              ptr->val[idy] = y[idx][idy];
-	          }*/
-			  
-	          ptr->forward_drop(bTrain);
-	      }
+                /* for (int idy = 0; idy < inDim; idy++) {
+                   x[idx][idy] = ptr->in->val[idy];
+                   }*/
+            }
+            x.mat_combine_from_vecs(x_vec);
+
+            y.product(1, 0, false, false, param->W.val, x);
+            /* y.mat() = param->W.val.mat() * x.mat();*/
+
+            vector<gpu_matrix*> val_vec(count);
+            for (int idx = 0; idx < count; idx++) {
+                LinearNode* ptr = (LinearNode*)batch[idx];
+                val_vec[idx] = &(ptr->val);
+            }
+
+            y.vec_separate_from_mat(val_vec);
+
+            for (int idx = 0; idx < count; idx++) {
+                LinearNode* ptr = (LinearNode*)batch[idx];
+                //ptr->val.vec_copy_mat(y, idx);
+                /* for (int idy = 0; idy < outDim; idy++) {
+                   ptr->val[idy] = y[idx][idy];
+                   }*/
+
+                ptr->forward_drop(bTrain);
+            }
 #else
-	    count = batch.size();
-        x.init(inDim, count);
-        y.init(outDim, count);
+            count = batch.size();
+            x.init(inDim, count);
+            y.init(outDim, count);
 
 
-        for (int idx = 0; idx < count; idx++) {
-            LinearNode* ptr = (LinearNode*)batch[idx];
-			x.mat_copy_vec(idx, ptr->in->val);
-           /* for (int idy = 0; idy < inDim; idy++) {
-                x[idx][idy] = ptr->in->val.v[idy];
-            }*/
-        }
+            for (int idx = 0; idx < count; idx++) {
+                LinearNode* ptr = (LinearNode*)batch[idx];
+                x.mat_copy_vec(idx, ptr->in->val);
+                /* for (int idy = 0; idy < inDim; idy++) {
+                   x[idx][idy] = ptr->in->val.v[idy];
+                   }*/
+            }
 
-		y.product(1, 0, false, false, param->W.val, x);
-        /*y.mat() = param->W.val.mat() * x.mat();*/
+            y.product(1, 0, false, false, param->W.val, x);
+            /*y.mat() = param->W.val.mat() * x.mat();*/
 
-        for (int idx = 0; idx < count; idx++) {
-            LinearNode* ptr = (LinearNode*)batch[idx];
-			ptr->val.vec_copy_mat(y, idx);
-            /*for (int idy = 0; idy < outDim; idy++) {
-                ptr->val.v[idy] = y[idx][idy];
-            }*/
-            ptr->forward_drop(bTrain);
-        }
+            for (int idx = 0; idx < count; idx++) {
+                LinearNode* ptr = (LinearNode*)batch[idx];
+                ptr->val.vec_copy_mat(y, idx);
+                /*for (int idy = 0; idy < outDim; idy++) {
+                  ptr->val.v[idy] = y[idx][idy];
+                  }*/
+                ptr->forward_drop(bTrain);
+            }
 #endif
-		auto end = std::chrono::high_resolution_clock::now();
-		out << "linear-forward " << std::chrono::duration<double>(end - start).count() << endl; 
-	  }
+            auto end = std::chrono::high_resolution_clock::now();
+            out << "linear-forward " << std::chrono::duration<double>(end - start).count() << endl; 
+        }
 
 
 
-	// inline void backward() {
-		// for (int idx = 0; idx < count; idx++) {
-			// LinearNode *ptr = (LinearNode*)batch[idx];
-			// ptr->backward_drop();
-			// ptr->backward();
-		// }
-	// }
+        // inline void backward() {
+        // for (int idx = 0; idx < count; idx++) {
+        // LinearNode *ptr = (LinearNode*)batch[idx];
+        // ptr->backward_drop();
+        // ptr->backward();
+        // }
+        // }
 
-    inline void backward() {
-		ofstream out("time", ios::app);
-		auto start = std::chrono::high_resolution_clock::now();
+        inline void backward() {
+            ofstream out("time", ios::app);
+            auto start = std::chrono::high_resolution_clock::now();
 #if USE_GPU
-		gpu_matrix lx, ly;
-        lx.init(inDim, count);
-        ly.init(outDim, count);
+            gpu_matrix lx, ly;
+            lx.init(inDim, count);
+            ly.init(outDim, count);
 
-		vector<gpu_matrix*> ly_vec(count);
-		//vector<gpu_matrix*> ly_vec(count);
-        for (int idx = 0; idx < count; idx++) {
-            LinearNode* ptr = (LinearNode*)batch[idx];
-            ptr->backward_drop();
-			
-			ly_vec[idx] = &(ptr->loss);
-			//ly.mat_copy_vec(idx, ptr->loss);
-			
-           /* for (int idy = 0; idy < outDim; idy++) {
-                ly[idx][idy] = ptr->loss[idy];
-            }*/
-			//ly_vec[idx] = &(ptr->loss);
-        }
-		
-		ly.mat_combine_from_vecs(ly_vec);
+            vector<gpu_matrix*> ly_vec(count);
+            //vector<gpu_matrix*> ly_vec(count);
+            for (int idx = 0; idx < count; idx++) {
+                LinearNode* ptr = (LinearNode*)batch[idx];
+                ptr->backward_drop();
 
-		param->W.grad.product(1, 1, false, true, ly, x);
-        /*param->W.grad.mat() += ly.mat() * x.mat().transpose();*/
+                ly_vec[idx] = &(ptr->loss);
+                //ly.mat_copy_vec(idx, ptr->loss);
 
-		lx.product(1, 1, true, false, param->W.val, ly);
-        /*lx.mat() += param->W.val.mat().transpose() * ly.mat();*/
+                /* for (int idy = 0; idy < outDim; idy++) {
+                   ly[idx][idy] = ptr->loss[idy];
+                   }*/
+                //ly_vec[idx] = &(ptr->loss);
+            }
 
-		vector<gpu_matrix*> loss_vec(count);
-        for (int idx = 0; idx < count; idx++) {
-            LinearNode* ptr = (LinearNode*)batch[idx];
-			loss_vec[idx] = &(ptr->in->loss);
-			//ptr->in->loss.vec_add_mat(ptr->in->loss, lx, idx);
-            /*for (int idy = 0; idy < inDim; idy++) {
-                ptr->in->loss[idy] += lx[idx][idy];
-            }*/
-        }
-		lx.vec_accumulate_from_mat(loss_vec);
+            ly.mat_combine_from_vecs(ly_vec);
+
+            param->W.grad.product(1, 1, false, true, ly, x);
+            /*param->W.grad.mat() += ly.mat() * x.mat().transpose();*/
+
+            lx.product(1, 1, true, false, param->W.val, ly);
+            /*lx.mat() += param->W.val.mat().transpose() * ly.mat();*/
+
+            vector<gpu_matrix*> loss_vec(count);
+            for (int idx = 0; idx < count; idx++) {
+                LinearNode* ptr = (LinearNode*)batch[idx];
+                loss_vec[idx] = &(ptr->in->loss);
+                //ptr->in->loss.vec_add_mat(ptr->in->loss, lx, idx);
+                /*for (int idy = 0; idy < inDim; idy++) {
+                  ptr->in->loss[idy] += lx[idx][idy];
+                  }*/
+            }
+            lx.vec_accumulate_from_mat(loss_vec);
 #else
-		cpu_matrix lx, ly;
-        lx.init(inDim, count);
-        ly.init(outDim, count);
+            cpu_matrix lx, ly;
+            lx.init(inDim, count);
+            ly.init(outDim, count);
 
-		
-        for (int idx = 0; idx < count; idx++) {
-            LinearNode* ptr = (LinearNode*)batch[idx];
-            ptr->backward_drop();
-			
-			ly.mat_copy_vec(idx, ptr->loss);
-          /*  for (int idy = 0; idy < outDim; idy++) {
-                ly[idx][idy] = ptr->loss.v[idy];
-            }*/
-        }
 
-		param->W.grad.product(1, 1, false, true, ly, x);
-      /*  param->W.grad.mat() += ly.mat() * x.mat().transpose();*/
+            for (int idx = 0; idx < count; idx++) {
+                LinearNode* ptr = (LinearNode*)batch[idx];
+                ptr->backward_drop();
 
-		lx.product(1, 1, true, false, param->W.val, ly);
-        /*lx.mat() += param->W.val.mat().transpose() * ly.mat();*/
+                ly.mat_copy_vec(idx, ptr->loss);
+                /*  for (int idy = 0; idy < outDim; idy++) {
+                    ly[idx][idy] = ptr->loss.v[idy];
+                    }*/
+            }
 
-        for (int idx = 0; idx < count; idx++) {
-            LinearNode* ptr = (LinearNode*)batch[idx];
-			ptr->in->loss.vec_add_mat(ptr->in->loss, lx, idx);
-			
-			//ptr->in->loss.save(out);
-           /* for (int idy = 0; idy < inDim; idy++) {
-                ptr->in->loss.v[idy] += lx[idx][idy];
-            }*/
-        }
+            param->W.grad.product(1, 1, false, true, ly, x);
+            /*  param->W.grad.mat() += ly.mat() * x.mat().transpose();*/
+
+            lx.product(1, 1, true, false, param->W.val, ly);
+            /*lx.mat() += param->W.val.mat().transpose() * ly.mat();*/
+
+            for (int idx = 0; idx < count; idx++) {
+                LinearNode* ptr = (LinearNode*)batch[idx];
+                ptr->in->loss.vec_add_mat(ptr->in->loss, lx, idx);
+
+                //ptr->in->loss.save(out);
+                /* for (int idy = 0; idy < inDim; idy++) {
+                   ptr->in->loss.v[idy] += lx[idx][idy];
+                   }*/
+            }
 #endif
-		auto end = std::chrono::high_resolution_clock::now();
-		out << endl;
-		out << "linear-backward " << std::chrono::duration<double>(end - start).count() << endl; 
-     }
+            auto end = std::chrono::high_resolution_clock::now();
+            out << endl;
+            out << "linear-backward " << std::chrono::duration<double>(end - start).count() << endl; 
+        }
 };
 
 
@@ -789,8 +692,8 @@ inline PExecute UniNode::generate(bool bTrain) {
     exec->activate = activate;
     exec->derivate = derivate;
 
-	exec->activate_function = activate_function;
-	exec->derivate_function = derivate_function;
+    exec->activate_function = activate_function;
+    exec->derivate_function = derivate_function;
 
     exec->bTrain = bTrain;
     return exec;

@@ -68,6 +68,17 @@ public:
 	void assign(int icol, int jrow, dtype value){
 		CCE(cudaMemcpy(v + icol*row + jrow, &value, sizeof(dtype), cudaMemcpyHostToDevice));
 	}
+
+        void assign_async(int col, int row, dtype value, cudaStream_t stream) {
+            CCE(cudaMemcpyAsync(v + icol*row + jrow, &value, sizeof(dtype),
+                        cudaMemcpyHostToDevice, stream));
+        }
+
+        void assign_async(int col, int row, dtype value) {
+            cudaStream_t stream;
+            CCE(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
+        }
+
 	dtype get(int icol, int jrow){
 		dtype r;
 		CCE(cudaMemcpy(&r, v + icol*row + jrow, sizeof(dtype), cudaMemcpyDeviceToHost));
