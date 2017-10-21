@@ -3,5 +3,9 @@ build/
 NNCNNLabeler
 Makefile
 cmake_install.cmake
-CMakeFiles/
+CMakeCache.txt
 *.a
+*.swp
+CMakeFiles/
+Makefile
+cmake_install.cmake

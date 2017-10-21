@@ -15,25 +15,29 @@ typedef  double dtype;
 #endif
 
 struct Activate {
-	enum FUNC_TYPE { Tanh_type = 0, Sigmoid_type = 1, Relu_type = 2 };
+	enum FUNC_TYPE { Tanh_type = 0, Sigmoid_type = 1, Relu_type = 2, Leaky_relu_type = 3};
 	int type;
 	Activate(int t) : type(t) {}
 	DEVICE_FUNC	inline dtype operator()(const dtype& x) const {
 		if (type == Tanh_type) {
 			return tanh(x);
 		}
-		if (type == Sigmoid_type) {
+		else if (type == Sigmoid_type) {
 			return 1.0 / (1.0 + exp(-x)); ;
 		}
-		if (type == Relu_type) {
+		else if (type == Relu_type) {
 			if (x <= 0) return 0;
 			return x;
 		}
+		else if(type == Leaky_relu_type) {
+			if(x < 0) return (0.1*x);
+			return x;
+		}	
 	}
 };
 
 struct dActivate {
-	enum DFUNC_TYPE { dTanh_type = 0, dSigmoid_type = 1, dRelu_type = 2 };
+	enum DFUNC_TYPE { dTanh_type = 0, dSigmoid_type = 1, dRelu_type = 2 , dLeaky_relu_type = 3};
 	int type;
 	dActivate(int t) : type(t) {}
 	
@@ -41,11 +45,15 @@ struct dActivate {
 		if (type == dTanh_type) {
 			return (1 + y) * (1 - y);
 		}
-		if (type == dSigmoid_type) {
+		else if (type == dSigmoid_type) {
 			return  (1 - y) * y;
 		}
-		if (type == dRelu_type) {
+		else if (type == dRelu_type) {
 			if (x <= 0) return 0;
+			return 1;
+		}
+		else if(type == dLeaky_relu_type) {
+			if ( x< 0) return 0.1;
 			return 1;
 		}
 	}

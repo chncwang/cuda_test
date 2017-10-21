@@ -7,107 +7,104 @@
 
 
 class SoftMaxLoss {
-  public:
-    inline dtype loss(PNode x, const vector<dtype> &answer, Metric& eval, int batchsize = 1) {
-        int nDim = x->dim;
-        int labelsize = answer.size();
-        if (labelsize != nDim) {
-            std::cerr << "softmax_loss error: dim size invalid" << std::endl;
-            return -1.0;
-        }
-
-        NRVec<dtype> scores(nDim);
-
-        dtype cost = 0.0;
-        int optLabel = -1;
-        for (int i = 0; i < nDim; ++i) {
-            if (answer[i] >= 0) {
-				if (optLabel < 0 || x->val.get(0, i) > x->val.get(0, optLabel))
-					optLabel = i;
-                /*if (optLabel < 0 || x->val[i] > x->val[optLabel])
-                    optLabel = i;*/
+    public:
+        inline dtype loss(PNode x, const vector<dtype> &answer, Metric& eval, int batchsize = 1) {
+            int nDim = x->dim;
+            int labelsize = answer.size();
+            if (labelsize != nDim) {
+                std::cerr << "softmax_loss error: dim size invalid" << std::endl;
+                return -1.0;
             }
-        }
 
-		dtype sum1 = 0, sum2 = 0, maxScore = x->val.get(0, optLabel);
-        for (int i = 0; i < nDim; ++i) {
-            scores[i] = -1e10;
-            if (answer[i] >= 0) {
-                scores[i] = exp(x->val.get(0, i) - maxScore);
-                if (answer[i] == 1)
-                    sum1 += scores[i];
-                sum2 += scores[i];
+            NRVec<dtype> scores(nDim);
+
+            dtype cost = 0.0;
+            int optLabel = -1;
+            for (int i = 0; i < nDim; ++i) {
+                if (answer[i] >= 0) {
+                    if (optLabel < 0 || x->val.get(0, i) > x->val.get(0, optLabel)) //TODO too slow
+                        optLabel = i;
+                }
             }
-        }
-        cost += (log(sum2) - log(sum1)) / batchsize;
-        if (answer[optLabel] == 1)
-            eval.correct_label_count++;
-        eval.overall_label_count++;
 
-        for (int i = 0; i < nDim; ++i) {
-            if (answer[i] >= 0) {
-				x->loss.assign(0, i, (scores[i] / sum2 - answer[i]) / batchsize);
-                /*x->loss[i] = (scores[i] / sum2 - answer[i]) / batchsize;*/
+            dtype sum1 = 0, sum2 = 0, maxScore = x->val.get(0, optLabel); // TODO too slow
+            for (int i = 0; i < nDim; ++i) {
+                scores[i] = -1e10;
+                if (answer[i] >= 0) {
+                    scores[i] = exp(x->val.get(0, i) - maxScore); // TODO too slow
+                    if (answer[i] == 1)
+                        sum1 += scores[i];
+                    sum2 += scores[i];
+                }
             }
-        }
-        return cost;
-    }
+            cost += (log(sum2) - log(sum1)) / batchsize;
+            if (answer[optLabel] == 1)
+                eval.correct_label_count++;
+            eval.overall_label_count++;
 
-    inline dtype predict(PNode x, int& y) {
-        int nDim = x->dim;
-
-        int optLabel = -1;
-        for (int i = 0; i < nDim; ++i) {
-            if (optLabel < 0 || x->val.get(0, i) >  x->val.get(0, optLabel) )
-                optLabel = i;
-        }
-
-        dtype prob = 0.0;
-        dtype sum = 0.0;
-        NRVec<dtype> scores(nDim);
-        dtype maxScore = x->val.get(0, optLabel);
-        for (int i = 0; i < nDim; ++i) {
-            scores[i] = exp(x->val.get(0, i) - maxScore);
-            sum += scores[i];
-        }
-        prob = scores[optLabel] / sum;
-        y = optLabel;
-        return prob;
-    }
-
-    inline dtype cost(PNode x, const vector<dtype> &answer, int batchsize = 1) {
-        int nDim = x->dim;
-        int labelsize = answer.size();
-        if (labelsize != nDim) {
-            std::cerr << "softmax_loss error: dim size invalid" << std::endl;
-            return -1.0;
+            for (int i = 0; i < nDim; ++i) {
+                if (answer[i] >= 0) {
+                    x->loss.assign(0, i, (scores[i] / sum2 - answer[i]) / batchsize); // TODO not enough fast
+                }
+            }
+            return cost;
         }
 
-        NRVec<dtype> scores(nDim);
+        inline dtype predict(PNode x, int& y) {
+            int nDim = x->dim;
 
-        dtype cost = 0.0;
-
-        int optLabel = -1;
-        for (int i = 0; i < nDim; ++i) {
-            if (answer[i] >= 0) {
-                if (optLabel < 0 || x->val.get(0, i) > x->val.get(0, optLabel))
+            int optLabel = -1;
+            for (int i = 0; i < nDim; ++i) {
+                if (optLabel < 0 || x->val.get(0, i) >  x->val.get(0, optLabel) ) // TODO too slow
                     optLabel = i;
             }
+
+            dtype prob = 0.0;
+            dtype sum = 0.0;
+            NRVec<dtype> scores(nDim);
+            dtype maxScore = x->val.get(0, optLabel); // TODO maybe too slow
+            for (int i = 0; i < nDim; ++i) {
+                scores[i] = exp(x->val.get(0, i) - maxScore); // TODO maybe too slow
+                sum += scores[i];
+            }
+            prob = scores[optLabel] / sum;
+            y = optLabel;
+            return prob;
         }
 
-        dtype sum1 = 0, sum2 = 0, maxScore = x->val.get(0, optLabel);
-        for (int i = 0; i < nDim; ++i) {
-            scores[i] = -1e10;
-            if (answer[i] >= 0) {
-                scores[i] = exp(x->val.get(0, i) - maxScore);
-                if (answer[i] == 1)
-                    sum1 += scores[i];
-                sum2 += scores[i];
+        inline dtype cost(PNode x, const vector<dtype> &answer, int batchsize = 1) {
+            int nDim = x->dim;
+            int labelsize = answer.size();
+            if (labelsize != nDim) {
+                std::cerr << "softmax_loss error: dim size invalid" << std::endl;
+                return -1.0;
             }
+
+            NRVec<dtype> scores(nDim);
+
+            dtype cost = 0.0;
+
+            int optLabel = -1;
+            for (int i = 0; i < nDim; ++i) {
+                if (answer[i] >= 0) {
+                    if (optLabel < 0 || x->val.get(0, i) > x->val.get(0, optLabel)) // TODO maybe too slow
+                        optLabel = i;
+                }
+            }
+
+            dtype sum1 = 0, sum2 = 0, maxScore = x->val.get(0, optLabel); // TODO maybe too slow
+            for (int i = 0; i < nDim; ++i) {
+                scores[i] = -1e10;
+                if (answer[i] >= 0) {
+                    scores[i] = exp(x->val.get(0, i) - maxScore); // TODO maybe too slow
+                    if (answer[i] == 1)
+                        sum1 += scores[i];
+                    sum2 += scores[i];
+                }
+            }
+            cost += (log(sum2) - log(sum1)) / batchsize;
+            return cost;
         }
-        cost += (log(sum2) - log(sum1)) / batchsize;
-        return cost;
-    }
 };
 
 

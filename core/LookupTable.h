@@ -2,12 +2,12 @@
 #define _LOOKUPTABLE_H_
 
 /*
-*  LookupTable.h:
-*  Lookup operation, for embeddings
-*
-*  Created on: Apr 22, 2017
-*      Author: mszhang
-*/
+ *  LookupTable.h:
+ *  Lookup operation, for embeddings
+ *
+ *  Created on: Apr 22, 2017
+ *      Author: mszhang
+ */
 
 #include "SparseParam.h"
 #include "MyLib.h"
@@ -17,251 +17,249 @@
 #include "ModelUpdate.h"
 
 class LookupTable {
-  public:
-    PAlphabet elems;
-    SparseParam E;
-    bool bFineTune;
-    int nDim;
-    int nVSize;
-    int nUNKId;
+    public:
+        PAlphabet elems;
+        SparseParam E;
+        bool bFineTune;
+        int nDim;
+        int nVSize;
+        int nUNKId;
 
-  public:
+    public:
 
-    LookupTable() {
-        nVSize = 0;
-        nDim = 0;
-        elems = NULL;
-        nUNKId = -1;
-        bFineTune = false;
-    }
-
-    //random initialization
-    inline void initial(PAlphabet alpha, int dim, bool fineTune = true) {
-        elems = alpha;
-        nVSize = elems->size();
-        nUNKId = elems->from_string(unknownkey);
-        initialWeights(dim, fineTune);
-    }
-
-    //initialization by pre-trained embeddings
-    inline bool initial(PAlphabet alpha, const string& inFile, bool fineTune = true, bool bNormalize = true) {
-        elems = alpha;
-        nVSize = elems->size();
-        nUNKId = elems->from_string(unknownkey);
-        return initialWeights(inFile, fineTune, bNormalize);
-    }
-
-    inline void initialWeights(int dim, bool tune) {
-        if (nVSize == 0) {
-            std::cout << "please check the alphabet" << std::endl;
-            return;
-        }
-        nDim = dim;
-        E.initial(nDim, nVSize);
-        //E.val.norm2one();
-        bFineTune = tune;
-    }
-
-    // default should be fineTune, just for initialization
-    inline bool initialWeights(const string& inFile, bool tune, bool normalize = true) {
-        if (nVSize == 0 || !elems->is_fixed()) {
-            std::cout << "please check the alphabet" << std::endl;
-            return false;
+        LookupTable() {
+            nVSize = 0;
+            nDim = 0;
+            elems = NULL;
+            nUNKId = -1;
+            bFineTune = false;
         }
 
-        ifstream inf;
-        if (inf.is_open()) {
+        //random initialization
+        inline void initial(PAlphabet alpha, int dim, bool fineTune = true) {
+            elems = alpha;
+            nVSize = elems->size();
+            nUNKId = elems->from_string(unknownkey);
+            initialWeights(dim, fineTune);
+        }
+
+        //initialization by pre-trained embeddings
+        inline bool initial(PAlphabet alpha, const string& inFile, bool fineTune = true, bool bNormalize = true) {
+            elems = alpha;
+            nVSize = elems->size();
+            nUNKId = elems->from_string(unknownkey);
+            return initialWeights(inFile, fineTune, bNormalize);
+        }
+
+        inline void initialWeights(int dim, bool tune) {
+            if (nVSize == 0) {
+                std::cout << "please check the alphabet" << std::endl;
+                return;
+            }
+            nDim = dim;
+            E.initial(nDim, nVSize);
+            //E.val.norm2one();
+            bFineTune = tune;
+        }
+
+        // default should be fineTune, just for initialization
+        inline bool initialWeights(const string& inFile, bool tune, bool normalize = true) {
+            if (nVSize == 0 || !elems->is_fixed()) {
+                std::cout << "please check the alphabet" << std::endl;
+                return false;
+            }
+
+            ifstream inf;
+            if (inf.is_open()) {
+                inf.close();
+                inf.clear();
+            }
+            inf.open(inFile.c_str());
+
+            string strLine, curWord;
+            int wordId;
+
+            vector<string> sLines;
+            sLines.clear();
+            while (1) {
+                if (!my_getline(inf, strLine)) {
+                    break;
+                }
+                if (!strLine.empty()) {
+                    sLines.push_back(strLine);
+                }
+            }
             inf.close();
-            inf.clear();
-        }
-        inf.open(inFile.c_str());
-
-        string strLine, curWord;
-        int wordId;
-
-        vector<string> sLines;
-        sLines.clear();
-        while (1) {
-            if (!my_getline(inf, strLine)) {
-                break;
+            if (sLines.size() == 0) {
+                return false;
             }
-            if (!strLine.empty()) {
-                sLines.push_back(strLine);
+
+            //find the first line, decide the wordDim;
+            vector<string> vecInfo;
+            split_bychar(sLines[0], vecInfo, ' ');
+            nDim = vecInfo.size() - 1;
+
+            E.initial(nDim, nVSize);
+            E.val.zeros();
+
+            std::cout << "word embedding dim is " << nDim << std::endl;
+
+            bool bHasUnknown = false;
+            unordered_set<int> indexers;
+            NRVec<dtype> sum(nDim);
+            sum = 0.0;
+            int count = 0;
+            for (int idx = 0; idx < sLines.size(); idx++) {
+                split_bychar(sLines[idx], vecInfo, ' ');
+                if (vecInfo.size() != nDim + 1) {
+                    std::cout << "error embedding file" << std::endl;
+                }
+                curWord = vecInfo[0];
+                //we assume the keys are normalized
+                wordId = elems->from_string(curWord);
+                if (wordId >= 0) {
+                    count++;
+                    if (nUNKId == wordId) {
+                        bHasUnknown = true;
+                    }
+                    indexers.insert(wordId);
+
+                    for (int idy = 0; idy < nDim; idy++) {
+                        dtype curValue = atof(vecInfo[idy + 1].c_str());
+                        sum[idy] += curValue;
+                        E.val.self_add(wordId, idy, curValue);
+                    }
+                }
             }
-        }
-        inf.close();
-        if (sLines.size() == 0) {
-            return false;
-        }
 
-        //find the first line, decide the wordDim;
-        vector<string> vecInfo;
-        split_bychar(sLines[0], vecInfo, ' ');
-        nDim = vecInfo.size() - 1;
-
-        E.initial(nDim, nVSize);
-        E.val.zeros();
-
-        std::cout << "word embedding dim is " << nDim << std::endl;
-
-        bool bHasUnknown = false;
-        unordered_set<int> indexers;
-        NRVec<dtype> sum(nDim);
-        sum = 0.0;
-        int count = 0;
-        for (int idx = 0; idx < sLines.size(); idx++) {
-            split_bychar(sLines[idx], vecInfo, ' ');
-            if (vecInfo.size() != nDim + 1) {
-                std::cout << "error embedding file" << std::endl;
-            }
-            curWord = vecInfo[0];
-            //we assume the keys are normalized
-            wordId = elems->from_string(curWord);
-            if (wordId >= 0) {
+            if (nUNKId >= 0 && !bHasUnknown) {
+                for (int idx = 0; idx < nDim; idx++) {
+                    // TODO not enough efficient
+                    E.val.assign(nUNKId, idx, sum[idx] / count);
+                }
+                indexers.insert(nUNKId);
                 count++;
-                if (nUNKId == wordId) {
-                    bHasUnknown = true;
-                }
-                indexers.insert(wordId);
+                std::cout << unknownkey << " not found, using averaged value to initialize." << std::endl;
+            }
 
-                for (int idy = 0; idy < nDim; idy++) {
-                    dtype curValue = atof(vecInfo[idy + 1].c_str());
-                    sum[idy] += curValue;
-					E.val.self_add(wordId, idy, curValue);
-                   /* E.val[wordId][idy] += curValue;*/
+            int oovWords = 0;
+            for (int id = 0; id < nVSize; id++) {
+                if (indexers.find(id) == indexers.end()) {
+                    oovWords++;
+                    for (int idy = 0; idy < nDim; idy++) {
+                        E.val.assign(id, idy, nUNKId >= 0 ? E.val.get(nUNKId, idy) : sum[idy] / count);
+                    }
                 }
+            }
+
+            std::cout << "OOV num is " << oovWords << ", total num is " << nVSize << ", embedding oov ratio is " << oovWords * 1.0 / nVSize << std::endl;
+            std::cout << "unknown id" << nUNKId << std::endl;
+            bFineTune = tune;
+            if (normalize) {
+                E.val.norm2one();
+            }
+            return true;
+        }
+
+        inline void exportAdaParams(ModelUpdate& ada) {
+            if (bFineTune) {
+                ada.addParam(&E);
             }
         }
 
-        if (nUNKId >= 0 && !bHasUnknown) {
-            for (int idx = 0; idx < nDim; idx++) {
-				E.val.assign(nUNKId, idx, sum[idx] / count);
-                /*E.val[nUNKId][idx] = sum[idx] / count;*/
-            }
-            indexers.insert(nUNKId);
-            count++;
-            std::cout << unknownkey << " not found, using averaged value to initialize." << std::endl;
+
+        inline int getElemId(const string& strFeat) {
+            return elems->from_string(strFeat);
         }
 
-        int oovWords = 0;
-        for (int id = 0; id < nVSize; id++) {
-            if (indexers.find(id) == indexers.end()) {
-                oovWords++;
-                for (int idy = 0; idy < nDim; idy++) {
-					E.val.assign(id, idy, nUNKId >= 0 ? E.val.get(nUNKId, idy) : sum[idy] / count);
-                    /*E.val[id][idy] = nUNKId >= 0 ? E.val[nUNKId][idy] : sum[idy] / count;*/
-                }
-            }
+        inline void save(std::ofstream &os) const {
+            E.save(os);
+            os << bFineTune << std::endl;
+            os << nDim << std::endl;
+            os << nVSize << std::endl;
+            os << nUNKId << std::endl;
         }
 
-        std::cout << "OOV num is " << oovWords << ", total num is " << nVSize << ", embedding oov ratio is " << oovWords * 1.0 / nVSize << std::endl;
-        std::cout << "unknown id" << nUNKId << std::endl;
-        bFineTune = tune;
-        if (normalize) {
-            E.val.norm2one();
+        //set alpha directly
+        inline void load(std::ifstream &is, PAlphabet alpha) {
+            E.load(is);
+            is >> bFineTune;
+            is >> nDim;
+            is >> nVSize;
+            is >> nUNKId;
+            elems = alpha;
         }
-        return true;
-    }
-
-    inline void exportAdaParams(ModelUpdate& ada) {
-        if (bFineTune) {
-            ada.addParam(&E);
-        }
-    }
-
-
-    inline int getElemId(const string& strFeat) {
-        return elems->from_string(strFeat);
-    }
-
-    inline void save(std::ofstream &os) const {
-        E.save(os);
-        os << bFineTune << std::endl;
-        os << nDim << std::endl;
-        os << nVSize << std::endl;
-        os << nUNKId << std::endl;
-    }
-
-    //set alpha directly
-    inline void load(std::ifstream &is, PAlphabet alpha) {
-        E.load(is);
-        is >> bFineTune;
-        is >> nDim;
-        is >> nVSize;
-        is >> nUNKId;
-        elems = alpha;
-    }
 
 };
 
 
 class LookupNode : public Node {
-  public:
-    LookupTable* param;
-    int xid;
+    public:
+        LookupTable* param;
+        int xid;
 
-  public:
-    LookupNode() {
-        xid = -1;
-        param = NULL;
-        node_type = "lookup";
-    }
-
-    inline void setParam(LookupTable* paramInit) {
-        param = paramInit;
-    }
-
-    inline void clearValue() {
-        Node::clearValue();
-        xid = -1;
-    }
-
-  public:
-    //notice the output
-    //this should be leaf nodes
-    void forward(Graph *cg, const string& strNorm) {
-        assert(param != NULL);
-        xid = param->getElemId(strNorm);
-        if (xid < 0 && param->nUNKId >= 0) {
-            xid = param->nUNKId;
-        }
-        degree = 0;
-        cg->addNode(this);
-    }
-
-  public:
-    inline PExecute generate(bool bTrain);
-
-    // better to rewrite for deep understanding
-    inline bool typeEqual(PNode other) {
-        bool result = Node::typeEqual(other);
-        if (!result) return false;
-
-        LookupNode* conv_other = (LookupNode*)other;
-        if (param != conv_other->param) {
-            return false;
+    public:
+        LookupNode() {
+            xid = -1;
+            param = NULL;
+            node_type = "lookup";
         }
 
-        return true;
-    }
-
-    // for which do no require merge
-  public:
-    void compute() {
-        if (xid >= 0) {
-            param->E.value(xid, val);
-        } else {
-            if (param->bFineTune)std::cout << "Caution: unknown words are not modeled !" << std::endl;
-            val.zeros();
+        inline void setParam(LookupTable* paramInit) {
+            param = paramInit;
         }
-    }
 
-    void backward() {
-        assert(param != NULL);
-        if (xid == param->nUNKId || (xid >= 0 && param->bFineTune)) {
-            param->E.loss(xid, loss);
+        inline void clearValue() {
+            Node::clearValue();
+            xid = -1;
         }
-    }
+
+    public:
+        //notice the output
+        //this should be leaf nodes
+        void forward(Graph *cg, const string& strNorm) {
+            assert(param != NULL);
+            xid = param->getElemId(strNorm);
+            if (xid < 0 && param->nUNKId >= 0) {
+                xid = param->nUNKId;
+            }
+            degree = 0;
+            cg->addNode(this);
+        }
+
+    public:
+        inline PExecute generate(bool bTrain);
+
+        // better to rewrite for deep understanding
+        inline bool typeEqual(PNode other) {
+            bool result = Node::typeEqual(other);
+            if (!result) return false;
+
+            LookupNode* conv_other = (LookupNode*)other;
+            if (param != conv_other->param) {
+                return false;
+            }
+
+            return true;
+        }
+
+        // for which do no require merge
+    public:
+        void compute() {
+            if (xid >= 0) {
+                param->E.value(xid, val);
+            } else {
+                if (param->bFineTune)std::cout << "Caution: unknown words are not modeled !" << std::endl;
+                val.zeros();
+            }
+        }
+
+        void backward() {
+            assert(param != NULL);
+            if (xid == param->nUNKId || (xid >= 0 && param->bFineTune)) {
+                param->E.loss(xid, loss);
+            }
+        }
 };
 
 
@@ -299,85 +297,85 @@ class LookupNode : public Node {
 //}
 //#else
 class LookupExecute :public Execute {
-  public:
-    bool bTrain;
-	LookupTable* param;
-	vector<gpu_matrix*> val_vec;
-	vector<gpu_matrix*> loss_vec;
-  public:
-    inline void  forward() {
-        int count = batch.size();
-//#pragma omp parallel for schedule(static,1)
-// test the time
-		ofstream out("time", ios::app);
-	    auto start = std::chrono::high_resolution_clock::now();
+    public:
+        bool bTrain;
+        LookupTable* param;
+        vector<gpu_matrix*> val_vec;
+        vector<gpu_matrix*> loss_vec;
+    public:
+        inline void  forward() {
+            int count = batch.size();
+            //#pragma omp parallel for schedule(static,1)
+            // test the time
+            ofstream out("time", ios::app);
+            auto start = std::chrono::high_resolution_clock::now();
 #if USE_GPU
-		param->E.indices.resize(count);
-		val_vec.resize(count);
-	
-		for (int idx = 0; idx < count; idx++) {
-            LookupNode* ptr = (LookupNode*)batch[idx];
-			if(ptr->xid >= 0){
-				param->E.indices[idx] = ptr->xid;
-				val_vec[idx] = &(ptr->val);
-			}else{
-				std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
-				ptr->val.zeros();
-			}	
-        }
-		
-		param->E.val.dense_to_sparse_block_assign(val_vec, param->E.indices, count);  // count ??
-		
-		for (int idx = 0; idx < count; idx++) {
-			LookupNode* ptr = (LookupNode*)batch[idx];
-			ptr->forward_drop(bTrain);
-		}
-#else
-		for (int idx = 0; idx < count; idx++) {
-			LookupNode* ptr = (LookupNode*)batch[idx];
-			ptr->compute();
-			ptr->forward_drop(bTrain);
-		}
-#endif
-		auto end = std::chrono::high_resolution_clock::now();
-		out << endl;
-		out << "lookup-forward " << std::chrono::duration<double>(end - start).count() << endl; 
-    }
+            param->E.indices.resize(count);
+            val_vec.resize(count);
 
-    inline void backward() {
-        int count = batch.size();
-//#pragma omp parallel for schedule(static,1)
-        
-		//ofstream outmm("count", ios::app);
-		//outmm <<  count << std::endl;
-		// ***test time***
-		ofstream out("time", ios::app);
-	    auto start = std::chrono::high_resolution_clock::now();
-#if USE_GPU		
-		for (int idx = 0; idx < count; idx++) {
-            LookupNode* ptr = (LookupNode*)batch[idx];
-            ptr->backward_drop();
-        }
-		
-		loss_vec.resize(count);
-		for (int idx = 0; idx < count; idx++) {
-            LookupNode* ptr = (LookupNode*)batch[idx];
-            loss_vec[idx] = &(ptr->loss);
-        }
-		
-		param->E.grad.sparse_to_dense_block_add(loss_vec, param->E.indices, count);
+            for (int idx = 0; idx < count; idx++) {
+                LookupNode* ptr = (LookupNode*)batch[idx];
+                if(ptr->xid >= 0){
+                    param->E.indices[idx] = ptr->xid;
+                    val_vec[idx] = &(ptr->val);
+                }else{
+                    std::cout << "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" << std::endl;
+                    ptr->val.zeros();
+                }	
+            }
+
+            param->E.val.dense_to_sparse_block_assign(val_vec, param->E.indices, count);  // count ??
+
+            for (int idx = 0; idx < count; idx++) {
+                LookupNode* ptr = (LookupNode*)batch[idx];
+                ptr->forward_drop(bTrain);
+            }
 #else
-		for (int idx = 0; idx < count; idx++) {
-				LookupNode* ptr = (LookupNode*)batch[idx];
-				ptr->backward_drop();
-				ptr->backward();
-		}
+            for (int idx = 0; idx < count; idx++) {
+                LookupNode* ptr = (LookupNode*)batch[idx];
+                ptr->compute();
+                ptr->forward_drop(bTrain);
+            }
 #endif
-		auto end = std::chrono::high_resolution_clock::now();
-		out << "lookup-backward " << std::chrono::duration<double>(end - start).count() << endl;
-	}
-//test the time	
-	
+            auto end = std::chrono::high_resolution_clock::now();
+            out << endl;
+            out << "lookup-forward " << std::chrono::duration<double>(end - start).count() << endl; 
+        }
+
+        inline void backward() {
+            int count = batch.size();
+            //#pragma omp parallel for schedule(static,1)
+
+            //ofstream outmm("count", ios::app);
+            //outmm <<  count << std::endl;
+            // ***test time***
+            ofstream out("time", ios::app);
+            auto start = std::chrono::high_resolution_clock::now();
+#if USE_GPU		
+            for (int idx = 0; idx < count; idx++) {
+                LookupNode* ptr = (LookupNode*)batch[idx];
+                ptr->backward_drop();
+            }
+
+            loss_vec.resize(count);
+            for (int idx = 0; idx < count; idx++) {
+                LookupNode* ptr = (LookupNode*)batch[idx];
+                loss_vec[idx] = &(ptr->loss);
+            }
+
+            param->E.grad.sparse_to_dense_block_add(loss_vec, param->E.indices, count);
+#else
+            for (int idx = 0; idx < count; idx++) {
+                LookupNode* ptr = (LookupNode*)batch[idx];
+                ptr->backward_drop();
+                ptr->backward();
+            }
+#endif
+            auto end = std::chrono::high_resolution_clock::now();
+            out << "lookup-backward " << std::chrono::duration<double>(end - start).count() << endl;
+        }
+        //test the time	
+
 };
 
 
@@ -385,7 +383,7 @@ inline PExecute LookupNode::generate(bool bTrain) {
     LookupExecute* exec = new LookupExecute();
     exec->batch.push_back(this);
     exec->bTrain = bTrain;
-	exec->param = param;
+    exec->param = param;
     return exec;
 }
 //#endif

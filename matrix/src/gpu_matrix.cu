@@ -68,25 +68,6 @@ struct gRand
         }
 };
 
-// inline int find_gpu_has_most_free_space(){
-// int nDevices;
-// int device_id_max_free_space = 0;
-// size_t mem_free;
-// size_t mem_free_max = -1;
-// size_t mem_total;
-// cudaGetDeviceCount(&nDevices);
-// for(int i=0; i < nDevices; i++) {
-// cudaSetDevice(i);
-// cudaMemGetInfo(&mem_free, &mem_total);
-// // if(mem_free_max < mem_free){
-// // device_id_max_free_space = i;
-// // mem_free_max = mem_free;
-// // }
-// }
-
-// return device_id_max_free_space;
-// }
-
 void InitGPU(cnmemDevice_t &device, size_t mem_size, int device_id)
 {	
     memset(&device, 0, sizeof(device));
@@ -102,89 +83,14 @@ void FinalizeGPU()
 {
     cnmemStatus_t status = cnmemFinalize();
     if (status != CNMEM_STATUS_SUCCESS) {
-        std::cout << cnmemGetErrorString(status) << std::endl;
-        //abort();
     }
 }
-
-
-//__global__ inline void naiveMatrixTranspose(dtype *odata, const dtype *idata, const int rows, const int cols) {
-//
-//  int x = blockIdx.x * blockDim.x + threadIdx.x;
-//  int y = blockIdx.y * blockDim.y + threadIdx.y;
-//
-//  if (x < cols && y < rows)
-//    odata[x*rows + y] = idata[y*cols+ x];
-//}
 
 void gpu_matrix::random(dtype bound){
     thrust::counting_iterator<unsigned int> index_sequence_begin(0);
     thrust::device_ptr<dtype> ptr(v);
     thrust::transform(index_sequence_begin, index_sequence_begin + size, ptr, gRand(-bound, bound));
 }
-
-// __global__ inline void max_pooling_kernel(dtype *src, dtype *target, int row, int n){
-// int tid = threadIdx.x + blockIdx.x * blockDim.x;
-
-// target[tid] = src[tid*row];
-// if(tid < n){
-// for(int i=tid*row+1; i<tid*row+row; i++){
-// target[tid] = (target[tid] >= src[i]) ? target[tid] : src[i];
-// }
-// }
-// }
-
-// __global__ void min_pooling_kernel(dtype *src, dtype *target, int row, int n){
-// int tid = threadIdx.x + blockIdx.x * blockDim.x;
-
-// target[tid] = src[tid*row];
-// if(tid < n){
-// for(int i=tid*row+1; i<tid*row+row; i++){
-// target[tid] = (target[tid] <= src[i]) ? target[tid] : src[i];
-// }
-// }
-// }
-
-// __global__ void average_pooling_kernel(dtype *src, dtype *target, int row, int n){
-// int tid = threadIdx.x + blockIdx.x * blockDim.x;
-
-// target[tid] = 0;
-// if(tid < n){
-// for(int i=tid*row; i<tid*row+row; i++){
-// target[tid] += src[i];
-// }
-// }
-// target[tid] /= row;
-// }
-
-
-// void gpu_matrix::max_pooling(const gpu_matrix &rhs){
-// max_pooling_kernel<<<(rhs.col + THREADS - 1)/THREADS, THREADS>>>(rhs.v, v, rhs.row, rhs.size);
-// }
-
-// void gpu_matrix::min_pooling(const gpu_matrix &rhs){
-// min_pooling_kernel<<<(rhs.col + THREADS - 1)/THREADS, THREADS>>>(rhs.v, v, rhs.row, rhs.size);
-// }
-
-// void gpu_matrix::average_pooling(const gpu_matrix &rhs){
-// average_pooling_kernel<<<(rhs.col + THREADS - 1)/THREADS, THREADS>>>(rhs.v, v, rhs.row, rhs.size);
-// }
-
-//void gpu_matrix::transpose(const gpu_matrix &rhs) {
-//	resize(rhs.col, rhs.row);
-//
-//	dim3 grid;
-//	grid.x = (unsigned int) ceil((float) col / 32);
-//	grid.y = (unsigned int) ceil((float) row / 32);
-//	dim3 threads(32, 32);
-//	naiveMatrixTranspose<<<grid, threads>>>(v, rhs.v, row, col);
-//}
-
-// void gpu_matrix::transpose(){
-// gpu_matrix rhs;
-// rhs = *this;
-// this->transpose(rhs);
-// }	
 
 gpu_matrix::~gpu_matrix(){
     delloc();
@@ -197,7 +103,7 @@ void gpu_matrix::delloc(){
     if(v){
         cnmemStatus_t status = cnmemFree(v, NULL);
         if (status != CNMEM_STATUS_SUCCESS) {
-            std::cout << cnmemGetErrorString(status) << std::endl;
+            //std::cout << cnmemGetErrorString(status) << std::endl;
         }
     }
     v = NULL;
@@ -209,7 +115,6 @@ void gpu_matrix::init(int r, int c){
     size = row * col;
     if(size != 0){
         assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&v, sizeof(dtype) * size, NULL));
-        //CCE(cudaMalloc((void**)&v, sizeof(dtype) * size));
         zero();
     }
 } 
@@ -217,6 +122,7 @@ void gpu_matrix::init(int r, int c){
 gpu_matrix::gpu_matrix():row(0), col(0), size(0), v(NULL) {}
 
 gpu_matrix::gpu_matrix(dtype* v_data, size_t r, size_t c){
+    abort();
     init(r, c);
     CCE(cudaMemcpy(v, v_data, sizeof(dtype) * row * col, cudaMemcpyHostToDevice));
 }
@@ -238,24 +144,18 @@ void gpu_matrix::zeros(){
 }
 
 void gpu_matrix::ones(){
-    // dtype one = 1.0;
-    // for(int i=0; i<size; i++){
-    // CCE(cudaMemcpy((v+i), &one, sizeof(dtype), cudaMemcpyHostToDevice));
-    // }
     thrust::device_ptr<dtype> ptr_a(v);
     thrust::transform(ptr_a, ptr_a + row * col, ptr_a, Assign(1));
 }
 
 gpu_matrix& gpu_matrix::operator=(const gpu_matrix &rhs){
     assert((row == rhs.row) && (col == rhs.col) && (size == rhs.size));
-    //resize(rhs.row, rhs.col);
-    CCE(cudaMemcpy(v, rhs.v, row * col * sizeof(dtype), cudaMemcpyDeviceToDevice));
+    CCE(cudaMemcpy(v, rhs.v, row * col * sizeof(dtype), cudaMemcpyDeviceToDevice)); // TODO may be too slow
     return *this;
 }
 
 gpu_matrix& gpu_matrix::operator=(const cpu_matrix &rhs){
     assert((row == rhs.row) && (col == rhs.col) && (size == rhs.size));
-    //resize(rhs.row, rhs.col);
     CCE(cudaMemcpy(v, rhs.v, row * col * sizeof(dtype), cudaMemcpyHostToDevice));
     return *this;
 }
@@ -465,55 +365,6 @@ void gpu_matrix::assign(dtype scale){
 }
 
 
-// void max_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask){
-// int dim = ins[0].size;
-// int size = mask.size();
-// vector<cpu_matrix> t_ins;// needn't delloc manually
-
-// t_ins.resize(ins.size());
-// for(int i=0; i<t_ins.size(); i++){
-// t_ins[i].init(ins[i].row, ins[i].col);
-// t_ins[i] = ins[i];
-// }
-
-
-// for(int i=0; i<dim; i++){
-// int max_iter = -1;
-// for(int j=0; j<size; j++){
-// if((max_iter == -1) || (t_ins[j].get(0, i) > t_ins[max_iter].get(0, i))){
-// max_iter = j;
-// }
-// }
-// //mask is on gpu
-// mask[max_iter].assign(0, i, 1.0);
-// }
-// }
-
-// void min_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask){
-// int dim = ins[0].size;
-// int size = mask.size();
-// vector<cpu_matrix> t_ins;// needn't delloc manually
-
-// t_ins.resize(ins.size());
-// for(int i=0; i<t_ins.size(); i++){
-// t_ins[i].init(ins[i].row, ins[i].col);
-// t_ins[i] = ins[i];
-// }
-
-
-// for(int i=0; i<dim; i++){
-// int min_iter = -1;
-// for(int j=0; j<size; j++){
-// if((min_iter == -1) || (t_ins[j].get(0, i) < t_ins[min_iter].get(0, i))){
-// min_iter = j;
-// }
-// }
-// //mask is on gpu
-// mask[min_iter].assign(0, i, 1.0);
-// }
-// }
-
-
 void gpu_matrix::concat(const vector<gpu_matrix> &rhs_vec){
     thrust::device_ptr<dtype> ptr_a(v);	
     assert(col == rhs_vec.size());
@@ -686,29 +537,44 @@ void gpu_matrix::special_add2(const gpu_matrix &a, const gpu_matrix &b, const gp
 // thrust::transform(ptr0, ptr0 + size, ptr1, xxx());
 // }
 
+__global__ void get_max_index(dtype** matrixes, dtype** mask, int size) {
+    int max_iter = -1;
+    int i = threadIdx.x;
+    for (int j = 0; j<size; j++) {
+        dtype * matrixesj = matrixes[j];
+        dtype matrixesji = matrixesj[i];
+        if ((max_iter == -1) || (matrixesji > matrixes[max_iter][i])) {
+            max_iter = j;
+        }
+    }
+    //mask is on gpu
+    mask[max_iter][i] = 1.0;
+}
+
+dtype **copy_matrix_ptrs_to_array(vector<gpu_matrix> &matrix) {
+    int size = matrix.size();
+    void *ptr;
+    int mem_size = sizeof(dtype*) * size;
+    cnmemStatus_t status = cnmemMalloc(&ptr, mem_size, NULL);
+    assert(CNMEM_STATUS_SUCCESS == status);
+    dtype **vs = static_cast<dtype**>(ptr);
+    dtype **cpu_mem = (dtype**)malloc(mem_size);
+    for (int i = 0; i < size; ++i) {
+        cpu_mem[i] = matrix.at(i).v;
+    }
+    CCE(cudaMemcpy(vs, cpu_mem, mem_size, cudaMemcpyHostToDevice));
+
+    return vs;
+}
 
 void max_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask) {
     int dim = ins[0].size;
-    int size = ins.size();
-    vector<cpu_matrix> t_ins;// needn't delloc manually
-
-    t_ins.resize(ins.size());
-    for (int i = 0; i<t_ins.size(); i++) {
-        t_ins[i].init(ins[i].row, ins[i].col);
-        t_ins[i] = ins[i];
-    }
-
-
-    for (int i = 0; i<dim; i++) {
-        int max_iter = -1;
-        for (int j = 0; j<size; j++) {
-            if ((max_iter == -1) || (t_ins[j].get(0, i) > t_ins[max_iter].get(0, i))) {
-                max_iter = j;
-            }
-        }
-        //mask is on gpu
-        mask[max_iter].assign(0, i, 1.0);
-    }
+    dtype **ins_arr = copy_matrix_ptrs_to_array(ins);
+    dtype **mask_arr = copy_matrix_ptrs_to_array(mask);
+    get_max_index<<<1, dim>>>(ins_arr, mask_arr, ins.size());
+    checkCudaErrors(cudaDeviceSynchronize());
+    assert(cnmemFree(ins_arr, NULL) == CNMEM_STATUS_SUCCESS);
+    assert(cnmemFree(mask_arr, NULL) == CNMEM_STATUS_SUCCESS);
 }
 
 void min_pooling_helper(vector<gpu_matrix> &ins, vector<gpu_matrix> &mask) {
@@ -900,15 +766,6 @@ void gpu_matrix::vec_separate_from_mat(vector<gpu_matrix*> &outs) {
     assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
 }
 
-// template<typename Real>
-// __global__ void _dense_to_sparse_block_assign(Real** trg, Real* src, int *idx, int bsize, int n) {
-// int i = blockIdx.x * blockDim.x + threadIdx.x; // row-index
-// int j = blockIdx.y * blockDim.y + threadIdx.y; // col-index.
-
-// if (id < n*bsize){
-// trg[][id%bsize] = src[idx[id/bsize]*bsize + id%bsize];
-// }
-// }
 
 template<typename Real>
 __global__ void _dense_to_sparse_block_assign(Real** trg, Real* src, int *idx, int row, int n) {
@@ -1058,4 +915,221 @@ void concatenate(vector<gpu_matrix*> &in, int stride, vector<gpu_matrix*> &out) 
     delete [] len;
 }
 
+__global__  void kernel_addition(dtype **srcs1, dtype **srcs2, dtype **trgs, int n, int dim){
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j =  blockIdx.y * blockDim.y + threadIdx.y; // col-index.
 
+    if(i<n && j<dim){
+        trgs[i][j] = srcs1[i][j] + srcs2[i][j];
+    }
+}
+
+void Addition(vector<gpu_matrix*> &out, vector<gpu_matrix*> &in1, vector<gpu_matrix*> &in2) {
+    assert(out.size() == in1.size());
+    assert(in1.size() == in2.size());
+    int nSize = in1.size();
+    int dim = in1[0]->size;
+
+    vector<dtype*> locs(nSize*3);
+    for(int i=0; i<nSize; i++) {
+        locs[i] = out[i]->v;
+    }
+    for(int i=0; i<nSize; i++) {
+        locs[i+nSize] = in1[i]->v;
+    }
+    for(int i=0; i<nSize; i++) {
+        locs[i+nSize*2] = in2[i]->v;
+    }
+
+    void *ptr;
+    assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&ptr, sizeof(dtype*) * (locs.size()), NULL));
+    dtype **trgs = static_cast<dtype**>(ptr);
+    CCE(cudaMemcpy(trgs, &(locs)[0], sizeof(dtype**) * locs.size(), cudaMemcpyHostToDevice));
+
+    dtype **srcs1 = trgs + nSize;
+    dtype **srcs2 = trgs + nSize*2;
+
+
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid(n_blocks(nSize, 32), n_blocks(dim, 32));
+    kernel_addition<<<dimGrid, dimBlock>>>(srcs1, srcs2, trgs, nSize, dim);
+    assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
+}
+
+
+
+__global__  void kernel_multi(dtype **srcs1, dtype **srcs2, dtype **trgs, int n, int dim){
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j =  blockIdx.y * blockDim.y + threadIdx.y; // col-index.
+
+    if(i<n && j<dim){
+        trgs[i][j] = srcs1[i][j] * srcs2[i][j];
+    }
+}
+
+void Multi(vector<gpu_matrix*> &out, vector<gpu_matrix*> &in1, vector<gpu_matrix*> &in2) {
+    assert(out.size() == in1.size());
+    assert(in1.size() == in2.size());
+    int nSize = in1.size();
+    int dim = in1[0]->size;
+
+    vector<dtype*> locs(nSize*3);
+    for(int i=0; i<nSize; i++) {
+        locs[i] = out[i]->v;
+    }
+    for(int i=0; i<nSize; i++) {
+        locs[i+nSize] = in1[i]->v;
+    }
+    for(int i=0; i<nSize; i++) {
+        locs[i+nSize*2] = in2[i]->v;
+    }
+
+    void *ptr;
+    assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&ptr, sizeof(dtype*) * (locs.size()), NULL));
+    dtype **trgs = static_cast<dtype**>(ptr);
+    CCE(cudaMemcpy(trgs, &(locs)[0], sizeof(dtype**) * locs.size(), cudaMemcpyHostToDevice));
+
+    dtype **srcs1 = trgs + nSize;
+    dtype **srcs2 = trgs + nSize*2;
+
+
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid(n_blocks(nSize, 32), n_blocks(dim, 32));
+    kernel_multi<<<dimGrid, dimBlock>>>(srcs1, srcs2, trgs, nSize, dim);
+    assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
+}
+
+
+__global__  void kernel_accumulate_addition_multi(dtype **srcs1, dtype **srcs2, dtype **trgs, int n, int dim){
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j =  blockIdx.y * blockDim.y + threadIdx.y; // col-index.
+
+    if(i<n && j<dim){
+        trgs[i][j] += srcs1[i][j] * srcs2[i][j];
+    }
+}
+
+void Accumulate_Addition_Multi(vector<gpu_matrix*> &out, vector<gpu_matrix*> &in1, vector<gpu_matrix*> &in2){
+    assert(out.size() == in1.size());
+    assert(in1.size() == in2.size());
+    int nSize = in1.size();
+    int dim = in1[0]->size;
+
+    vector<dtype*> locs(nSize*3);
+    for(int i=0; i<nSize; i++) {
+        locs[i] = out[i]->v;
+    }
+    for(int i=0; i<nSize; i++) {
+        locs[i+nSize] = in1[i]->v;
+    }
+    for(int i=0; i<nSize; i++) {
+        locs[i+nSize*2] = in2[i]->v;
+    }
+
+
+    void *ptr;
+    assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&ptr, sizeof(dtype*) * (locs.size()), NULL));
+    dtype **trgs = static_cast<dtype**>(ptr);
+    CCE(cudaMemcpy(trgs, &(locs)[0], sizeof(dtype**) * locs.size(), cudaMemcpyHostToDevice));
+
+    dtype **srcs1 = trgs + nSize;
+    dtype **srcs2 = trgs + nSize*2;
+
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid(n_blocks(nSize, 32), n_blocks(dim, 32));
+    kernel_accumulate_addition_multi<<<dimGrid, dimBlock>>>(srcs1, srcs2, trgs, nSize, dim);
+    assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
+}
+
+
+__global__ void kernel_param_update_adam(dtype *g, dtype *v, dtype *mean, dtype *square, int row, int col, dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps, dtype lr_t) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j =  blockIdx.y * blockDim.y + threadIdx.y; 
+
+    if(i<row && j<col) {
+        int index = j*row + i;
+        if(col > 1 && row >1){  
+            g[index] = g[index] + v[index]*reg;
+        }
+        mean[index] = belta1 * mean[index] + (1-belta1)*g[index];
+        square[index] = belta2*square[index] + (1-belta2)*g[index]*g[index];
+        v[index] = v[index] - mean[index] * lr_t / sqrt((square[index] + eps));
+    }
+}
+
+void Param_Update_Adam(gpu_matrix& grad, gpu_matrix &val, gpu_matrix &aux_mean, gpu_matrix &aux_square, dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps, int iter) {
+
+    int row = val.row;
+    int col = val.col;
+
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid(n_blocks(row, 32), n_blocks(col, 32));
+    dtype lr_t = alpha * sqrt(1 - pow(belta2, iter + 1)) / (1 - pow(belta1, iter + 1));
+    kernel_param_update_adam<<<dimGrid, dimBlock>>>(grad.v, val.v, aux_mean.v, aux_square.v, row,  col, belta1, belta2, alpha, reg, eps, lr_t);
+}
+
+
+__global__ void kernel_sparseparam_update_adam(dtype *g, dtype *v, dtype *mean, dtype *square, dtype* last_update, int* ids , int row, int col, dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps) {
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int j =  blockIdx.y * blockDim.y + threadIdx.y; 
+
+    //if(i<row && j<n && indexers[ids[j]])
+    if(i<row && j<col) {
+        if(ids[j] == 1){
+            int index = j*row + i;
+            g[index] = g[index] + v[index]*reg;
+            mean[index] = belta1 * mean[index] + (1-belta1)*g[index];
+            square[index] = belta2*square[index] + (1-belta2)*g[index]*g[index];
+
+            dtype lr_t = alpha * sqrt(1 - pow(belta2, last_update[j] + 1)) / (1 - pow(belta1, last_update[j] + 1));;
+
+            v[index] = v[index] - mean[index] * lr_t / sqrt((square[index] + eps));
+
+            last_update[j] += 1;
+        }
+    }
+}
+
+void SparseParam_Update_Adam(gpu_matrix& grad, 
+        gpu_matrix &val, 
+        gpu_matrix &aux_mean, 
+        gpu_matrix &aux_square, 
+        gpu_matrix &last_update,
+        vector<int>& ids,
+        dtype belta1, 
+        dtype belta2, 
+        dtype alpha, 
+        dtype reg, 
+        dtype eps
+        )  
+{
+    int *ptr = NULL;
+    assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&ptr, sizeof(int) * (ids.size()), NULL));
+
+
+    CCE(cudaMemcpy(ptr, &(ids)[0], sizeof(int) * (ids.size()), cudaMemcpyHostToDevice));
+
+    int row = val.row;
+    int col = val.col;
+
+    dim3 dimBlock(32, 32);
+    dim3 dimGrid(n_blocks(row, 32), n_blocks(col, 32));
+
+    kernel_sparseparam_update_adam<<<dimGrid, dimBlock>>>(grad.v, val.v, aux_mean.v, aux_square.v, last_update.v, ptr, row, col, belta1, belta2, alpha, reg, eps);
+    assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
+}
+
+__global__ void ker_add(dtype *v, dtype scale, int n) {
+    int id = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if(id < n) {
+        v[id] += n;
+    }
+} 
+
+
+void gpu_matrix::add(const gpu_matrix &rhs, dtype scale) {
+    dim3 dimBlock(32);
+    dim3 dimGrid(n_blocks(size, 32));
+    ker_add<<<dimGrid, dimBlock>>>(rhs.v, scale, rhs.size);
+}
