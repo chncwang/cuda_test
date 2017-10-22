@@ -74,11 +74,6 @@ class gpu_matrix
                         cudaMemcpyHostToDevice, stream));
         }
 
-        void assign_async(int col, int row, dtype value) {
-            cudaStream_t stream;
-            CCE(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
-        }
-
         dtype get(int icol, int jrow){
             dtype r;
             CCE(cudaMemcpy(&r, v + icol*row + jrow, sizeof(dtype), cudaMemcpyDeviceToHost));

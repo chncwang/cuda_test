@@ -52,11 +52,6 @@ public:
 	}
 
 	virtual ~Node() {
-//                val.zeros();
-//                loss.zeros();
-//                degree = 0;
-//                parents.clear();
-//                node_type.clear();
 	}
 
 public:

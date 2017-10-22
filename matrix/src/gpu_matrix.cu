@@ -11,6 +11,7 @@
 #include <thrust/device_vector.h>
 #include <thrust/transform_reduce.h>
 #include <thrust/reduce.h>
+#include "cuda_util.h"
 
 #define threadsize  32
 
@@ -103,7 +104,8 @@ void gpu_matrix::delloc(){
     if(v){
         cnmemStatus_t status = cnmemFree(v, NULL);
         if (status != CNMEM_STATUS_SUCCESS) {
-            //std::cout << cnmemGetErrorString(status) << std::endl;
+            std::cout << cnmemGetErrorString(status) << std::endl;
+            abort();
         }
     }
     v = NULL;
@@ -378,16 +380,10 @@ void gpu_matrix::concat(const vector<gpu_matrix> &rhs_vec){
 
 
 void gpu_matrix::big_copy_small(int offset, const gpu_matrix &rhs){
-    // thrust::device_ptr<dtype> ptr_a(v + offset);
-    // thrust::device_ptr<dtype> ptr_b(rhs.v);
-    // thrust::transform(ptr_b, ptr_b + rhs.size, ptr_a, Assignab());
-    CCE(cudaMemcpy(v+offset, rhs.v, rhs.size*sizeof(dtype), cudaMemcpyDeviceToDevice));
+    CopyGlobalArray<dtype>(v+offset, rhs.v, rhs.size);
 }
 
 void gpu_matrix::small_copy_big(const gpu_matrix &rhs, int offset){
-    // thrust::device_ptr<dtype> ptr_a(v);
-    // thrust::device_ptr<dtype> ptr_b(rhs.v + offset);
-    // thrust::transform(ptr_b, ptr_b + size, ptr_a, Assignab());
     CCE(cudaMemcpy(v, rhs.v+offset, size*sizeof(dtype), cudaMemcpyDeviceToDevice));
 }
 
@@ -1132,4 +1128,35 @@ void gpu_matrix::add(const gpu_matrix &rhs, dtype scale) {
     dim3 dimBlock(32);
     dim3 dimGrid(n_blocks(size, 32));
     ker_add<<<dimGrid, dimBlock>>>(rhs.v, scale, rhs.size);
+}
+
+__global__ void CopyElement(char *dest, char *src) {
+    int index = threadIdx.x;
+    dest[index] = src[index];
+}
+
+template<typename T>
+void CopyGlobalArray(T *dest, T *src, int length) {
+    char *dest_int = (char*)(dest);
+    char *src_int = (char*)(src);
+    CopyElement<<<1, length * sizeof(T)>>>(dest_int, src_int);
+}
+
+__global__ void InitArr(double *arr) {
+    arr[threadIdx.x] = threadIdx.x / 10.0;
+}
+
+__global__ void PrintArr(double *arr) {
+    for (int i = 0; i< 100; ++i) {
+        printf("%f\n", arr[i]);
+    }
+}
+
+void TestCudaUtil() {
+    void *dest, *src;
+    assert(cnmemMalloc(&dest, 100 * sizeof(double), NULL) == CNMEM_STATUS_SUCCESS);
+    assert(cnmemMalloc(&src, 100 * sizeof(double), NULL)==CNMEM_STATUS_SUCCESS);
+    InitArr<<<1, 100>>>((double*)src);
+    CopyGlobalArray((double*)dest, (double*)src, 100);
+    PrintArr<<<1, 1>>>((double*)dest);
 }

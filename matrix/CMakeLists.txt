@@ -24,4 +24,6 @@ else()
 	add_library(matrix src/cpu_matrix.cc)
 endif()
 
+add_executable(cuda_test src/main.cc)
 target_link_libraries(matrix ${LIBS})
+target_link_libraries(cuda_test matrix)

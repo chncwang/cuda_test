@@ -59,5 +59,3 @@ include_directories(core)
 add_subdirectory(matrix)
 set(LIBS ${LIBS} matrix)
 add_subdirectory(src)
-
-
