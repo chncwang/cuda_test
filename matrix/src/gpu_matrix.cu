@@ -378,16 +378,14 @@ void gpu_matrix::concat(const vector<gpu_matrix> &rhs_vec){
 
 
 void gpu_matrix::big_copy_small(int offset, const gpu_matrix &rhs){
-    // thrust::device_ptr<dtype> ptr_a(v + offset);
-    // thrust::device_ptr<dtype> ptr_b(rhs.v);
-    // thrust::transform(ptr_b, ptr_b + rhs.size, ptr_a, Assignab());
     CCE(cudaMemcpy(v+offset, rhs.v, rhs.size*sizeof(dtype), cudaMemcpyDeviceToDevice));
 }
 
+void gpu_matrix::big_copy_small_async(int offset, const gpu_matrix &rhs, cudaStream_t stream){
+    CCE(cudaMemcpyAsync(v+offset, rhs.v, rhs.size*sizeof(dtype), cudaMemcpyDeviceToDevice, stream));
+}
+
 void gpu_matrix::small_copy_big(const gpu_matrix &rhs, int offset){
-    // thrust::device_ptr<dtype> ptr_a(v);
-    // thrust::device_ptr<dtype> ptr_b(rhs.v + offset);
-    // thrust::transform(ptr_b, ptr_b + size, ptr_a, Assignab());
     CCE(cudaMemcpy(v, rhs.v+offset, size*sizeof(dtype), cudaMemcpyDeviceToDevice));
 }
 

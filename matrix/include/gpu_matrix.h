@@ -74,11 +74,6 @@ class gpu_matrix
                         cudaMemcpyHostToDevice, stream));
         }
 
-        void assign_async(int col, int row, dtype value) {
-            cudaStream_t stream;
-            CCE(cudaStreamCreateWithFlags(&stream, cudaStreamNonBlocking));
-        }
-
         dtype get(int icol, int jrow){
             dtype r;
             CCE(cudaMemcpy(&r, v + icol*row + jrow, sizeof(dtype), cudaMemcpyDeviceToHost));
@@ -146,6 +141,8 @@ class gpu_matrix
         void concat(const vector<gpu_matrix> &rhs_vec);
 
         void big_copy_small(int offset, const gpu_matrix &rhs);
+
+        void big_copy_small_async(int offset, const gpu_matrix &rhs, cudaStream_t stream);
 
         void small_copy_big(const gpu_matrix &rhs, int offset);
 
