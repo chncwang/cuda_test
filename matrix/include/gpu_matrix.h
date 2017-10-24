@@ -142,6 +142,8 @@ class gpu_matrix
 
         void big_copy_small(int offset, const gpu_matrix &rhs);
 
+        void big_copy_small_async(int offset, const gpu_matrix &rhs, cudaStream_t stream);
+
         void small_copy_big(const gpu_matrix &rhs, int offset);
 
         void short_add_long(const gpu_matrix &a, const gpu_matrix &b, int offset);

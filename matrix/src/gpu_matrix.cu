@@ -383,6 +383,10 @@ void gpu_matrix::big_copy_small(int offset, const gpu_matrix &rhs){
     CopyGlobalArray<dtype>(v+offset, rhs.v, rhs.size);
 }
 
+void gpu_matrix::big_copy_small_async(int offset, const gpu_matrix &rhs, cudaStream_t stream){
+    CCE(cudaMemcpyAsync(v+offset, rhs.v, rhs.size*sizeof(dtype), cudaMemcpyDeviceToDevice, stream));
+}
+
 void gpu_matrix::small_copy_big(const gpu_matrix &rhs, int offset){
     CCE(cudaMemcpy(v, rhs.v+offset, size*sizeof(dtype), cudaMemcpyDeviceToDevice));
 }
@@ -1055,6 +1059,7 @@ __global__ void kernel_param_update_adam(dtype *g, dtype *v, dtype *mean, dtype 
 
 void Param_Update_Adam(gpu_matrix& grad, gpu_matrix &val, gpu_matrix &aux_mean, gpu_matrix &aux_square, dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps, int iter) {
 
+
     int row = val.row;
     int col = val.col;
 
@@ -1088,14 +1093,14 @@ __global__ void kernel_sparseparam_update_adam(dtype *g, dtype *v, dtype *mean, 
 
 void SparseParam_Update_Adam(gpu_matrix& grad, 
         gpu_matrix &val, 
-        gpu_matrix &aux_mean, 
-        gpu_matrix &aux_square, 
+        gpu_matrix &aux_mean,
+        gpu_matrix &aux_square,
         gpu_matrix &last_update,
         vector<int>& ids,
-        dtype belta1, 
-        dtype belta2, 
-        dtype alpha, 
-        dtype reg, 
+        dtype belta1,
+        dtype belta2,
+        dtype alpha,
+        dtype reg,
         dtype eps
         )  
 {

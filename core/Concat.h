@@ -19,7 +19,6 @@ class ConcatNode : public Node {
         vector<int> inDims;
         vector<PNode> ins;
 
-        //
         int nSize;
 
     public:
@@ -173,7 +172,6 @@ class ConcatNode : public Node {
                 offset += inDims[i];
             }
         }
-
 };
 
 
