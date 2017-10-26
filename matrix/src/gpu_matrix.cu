@@ -1191,11 +1191,10 @@ void TestCublasSum() {
         InitArr<<<1, 100>>>((double*)dest[i]);
     }
 
+    double alpha = 1.0;
     for (int k = 0; k < 100000; ++k) {
         for (int i = 0; i<5; ++i) {
-            thrust::device_ptr<double> thrust_src((double*)src + i * 100);
-            thrust::device_ptr<double> thrust_dest((double*)dest[i]);
-            thrust::transform(thrust_src, thrust_src + 100, thrust_dest, thrust_dest, thrust::plus<double>());
+            cublasDaxpy(CUBLAS_HANDLE::getInstance(), 100, &alpha, (double*)src, 1, (double*)dest[i], 1);
         }
     }
     for (int i = 0; i< 5; ++i) {
