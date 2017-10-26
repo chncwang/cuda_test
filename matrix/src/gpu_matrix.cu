@@ -104,8 +104,8 @@ void gpu_matrix::delloc(){
     if(v){
         cnmemStatus_t status = cnmemFree(v, NULL);
         if (status != CNMEM_STATUS_SUCCESS) {
-            std::cout << cnmemGetErrorString(status) << std::endl;
-            abort();
+//            std::cout << cnmemGetErrorString(status) << std::endl;
+//            abort(); TODO
         }
     }
     v = NULL;
@@ -1151,6 +1151,10 @@ __global__ void InitArr(double *arr) {
     arr[threadIdx.x] = threadIdx.x / 10.0;
 }
 
+__global__ void InitArr(float *arr) {
+    arr[threadIdx.x] = threadIdx.x / 10.0;
+}
+
 __global__ void PrintArr(double *arr) {
     for (int i = 0; i< 100; ++i) {
         printf("%f\n", arr[i]);
@@ -1162,6 +1166,39 @@ void TestCudaUtil() {
     assert(cnmemMalloc(&dest, 100 * sizeof(double), NULL) == CNMEM_STATUS_SUCCESS);
     assert(cnmemMalloc(&src, 100 * sizeof(double), NULL)==CNMEM_STATUS_SUCCESS);
     InitArr<<<1, 100>>>((double*)src);
-    CopyGlobalArray((double*)dest, (double*)src, 100);
-    PrintArr<<<1, 1>>>((double*)dest);
+    vector<cublasHandle_t> handles;
+    handles.reserve(1000000);
+
+    for (int i =0; i<10;++i) {
+        cublasHandle_t h;
+        cublasCreate(&h);
+        handles.push_back(h);
+    }
+    for (int i = 0; i<1000000; ++i) {
+        cublasDcopy(handles[i % 10], 100, (double*)src, 1, (double*)dest, 1);
+    }
+}
+
+void TestCublasSum() {
+    void *src;
+    void **dest = (void**)malloc(sizeof(void*) * 5);
+    for (int i = 0; i<5; ++i) {
+        assert(cnmemMalloc(&(dest[i]), 100 * sizeof(double), NULL) == CNMEM_STATUS_SUCCESS);
+    }
+    assert(cnmemMalloc(&src, 500 * sizeof(double), NULL)==CNMEM_STATUS_SUCCESS);
+    InitArr<<<1, 500>>>((double*)src);
+    for (int i = 0; i<5; ++i) {
+        InitArr<<<1, 100>>>((double*)dest[i]);
+    }
+
+    for (int k = 0; k < 100000; ++k) {
+        for (int i = 0; i<5; ++i) {
+            thrust::device_ptr<double> thrust_src((double*)src + i * 100);
+            thrust::device_ptr<double> thrust_dest((double*)dest[i]);
+            thrust::transform(thrust_src, thrust_src + 100, thrust_dest, thrust_dest, thrust::plus<double>());
+        }
+    }
+    for (int i = 0; i< 5; ++i) {
+        PrintArr<<<1, 1>>>((double*)dest[i]);
+    }
 }

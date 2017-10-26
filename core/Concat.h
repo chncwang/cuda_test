@@ -167,6 +167,7 @@ class ConcatNode : public Node {
 
         void backward() {
             int offset = 0;
+            cout <<"concat nsize:" << nSize << endl;
             for (int i = 0; i < nSize; ++i) {
                 ins[i]->loss.short_add_long(ins[i]->loss, loss, offset);
                 offset += inDims[i];
