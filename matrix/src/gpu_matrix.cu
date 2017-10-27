@@ -393,10 +393,15 @@ void gpu_matrix::small_copy_big(const gpu_matrix &rhs, int offset){
 
 
 void gpu_matrix::short_add_long(const gpu_matrix &a, const gpu_matrix &b, int offset){
-    thrust::device_ptr<dtype> ptr_a(v);
-    thrust::device_ptr<dtype> ptr_b(a.v);
-    thrust::device_ptr<dtype> ptr_c(b.v + offset);
-    thrust::transform(ptr_b, ptr_b + b.size, ptr_c, ptr_a, thrust::plus<dtype>());
+    if (typeid(dtype) == typeid(float)) {
+        static float alpha = 1.0;
+        cublasSaxpy(CUBLAS_HANDLE::getInstance(), b.size, &alpha, (float*)(b.v + offset), 1, (float*)a.v, 1);
+    } else if (typeid(dtype) == typeid(double)) {
+        static double alpha = 1.0;
+        cublasDaxpy(CUBLAS_HANDLE::getInstance(), b.size, &alpha, (double*)(b.v + offset), 1, (double*)a.v, 1);
+    } else {
+        abort();
+    }
 }
 
 
