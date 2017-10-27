@@ -76,7 +76,6 @@ class PoolNode : public Node {
             cg->addNode(this);
         }
 
-
     public:
         inline PExecute generate(bool bTrain);
 
@@ -86,28 +85,25 @@ class PoolNode : public Node {
         }
 
     public:
-        virtual inline void setMask() = 0;
+        virtual void setMask() {}
 
-        inline void compute() {
+        virtual void compute() {
             int nSize = ins.size();
-            setMask();
             val.zeros();
+            setMask();
 #if USE_GPU
             gpu_matrix t;
 #else
             cpu_matrix t;
-#endif  
+#endif
             t.init(val.row, val.col);
             for (int i = 0; i < nSize; ++i) {
                 t.multiply(masks[i], ins[i]->val);
                 val.add(val, t);
             }
-            /* for (int i = 0; i < nSize; ++i) {
-               val.vec() += masks[i].vec() * ins[i]->val.vec();
-               }*/
         }
 
-        void backward() {
+        virtual void backward() {
             int nSize = ins.size();
 #if USE_GPU
             gpu_matrix t;
@@ -119,9 +115,6 @@ class PoolNode : public Node {
                 t.multiply(loss, masks[i]);
                 ins[i]->loss.add(ins[i]->loss, t);
             }
-            /* for (int i = 0; i < nSize; i++) {
-               ins[i]->loss.vec() += loss.vec() * masks[i].vec();
-               }*/
         }
 
 };
@@ -193,13 +186,40 @@ class AvgPoolNode : public PoolNode {
             node_type = "avg-pooling";
         }
 
-    public:
-        //Be careful that the row is the dim of input vector, and the col is the number of input vectors
-        //Another point is that we change the input vectors directly.
-        void setMask() {
+        void compute() override {
             int nSize = ins.size();
+            val.zeros();
+#if USE_GPU
+            masks[0].assign((dtype)(1.0 / nSize));
+
+            gpu_matrix t;
+            t.init(val.row, val.col);
             for (int i = 0; i < nSize; ++i) {
-                masks[i].assign((dtype)(1.0 / nSize));
+                val.add(val, ins[i]->val);
+            }
+            val.multiply(masks[0], val);
+#else
+            setMask();
+            cpu_matrix t;
+            t.init(val.row, val.col);
+            for (int i = 0; i < nSize; ++i) {
+                t.multiply(masks[i], ins[i]->val);
+                val.add(val, t);
+            }
+#endif
+        }
+
+        void backward() {
+            int nSize = ins.size();
+#if USE_GPU
+            gpu_matrix t;
+#else
+            cpu_matrix t;
+#endif
+            t.init(val.row, val.col);
+            t.multiply(loss, masks[0]);
+            for (int i = 0; i < nSize; i++) {
+                ins[i]->loss.add(ins[i]->loss, t);
             }
         }
 };
@@ -210,35 +230,21 @@ class PoolExecute : public Execute {
         bool bTrain;
     public:
         inline void  forward() {
-            ofstream out("time", ios::app);
-            auto start = std::chrono::high_resolution_clock::now();
-
             int count = batch.size();
-            // std::cout << "pooling" << endl;
-            //#pragma omp parallel for schedule(static,1)
             for (int idx = 0; idx < count; idx++) {
                 PoolNode* ptr = (PoolNode*)batch[idx];
                 ptr->compute();
                 ptr->forward_drop(bTrain);
             }
-            auto end = std::chrono::high_resolution_clock::now();
-            out << "pooling-forward " << std::chrono::duration<double>(end - start).count() << endl; 
         }
 
         inline void backward() {
-            ofstream out("time", ios::app);
-            auto start = std::chrono::high_resolution_clock::now();
-
             int count = batch.size();
-            //#pragma omp parallel for schedule(static,1)
             for (int idx = 0; idx < count; idx++) {
                 PoolNode* ptr = (PoolNode*)batch[idx];
                 ptr->backward_drop();
                 ptr->backward();
             }
-
-            auto end = std::chrono::high_resolution_clock::now();
-            out << "pooling-backward " << std::chrono::duration<double>(end - start).count() << endl; 
         }
 };
 
@@ -248,6 +254,5 @@ inline PExecute PoolNode::generate(bool bTrain) {
     exec->bTrain = bTrain;
     return exec;
 }
-//#endif
 
 #endif

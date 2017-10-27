@@ -13,7 +13,6 @@ int main() {
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
-    TestCublasSum();
     cudaEventRecord(stop);
     cudaDeviceSynchronize();
     float milliseconds = 0;
