@@ -6,12 +6,10 @@
 #endif
 
 Classifier::Classifier(): m_driver(){
-    // TODO Auto-generated constructor stub
     srand(0);
 }
 
 Classifier::~Classifier() {
-    // TODO Auto-generated destructor stub
 }
 
 int Classifier::createAlphabet(const vector<Instance>& vecInsts) {

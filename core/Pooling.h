@@ -205,37 +205,6 @@ class AvgPoolNode : public PoolNode {
 };
 
 
-//#if USE_GPU
-//class PoolExecute : public Execute {
-//public:
-//  bool bTrain;
-//public:
-//  inline void  forward() {
-//    int count = batch.size();
-//    for (int idx = 0; idx < count; idx++) {
-//      PoolNode* ptr = (PoolNode*)batch[idx];
-//      ptr->compute();
-//      ptr->forward_drop(bTrain);
-//    }
-//  }
-//
-//  inline void backward() {
-//    int count = batch.size();
-//    for (int idx = 0; idx < count; idx++) {
-//      PoolNode* ptr = (PoolNode*)batch[idx];
-//      ptr->backward_drop();
-//      ptr->backward();
-//    }
-//  }
-//};
-//
-//inline PExecute PoolNode::generate(bool bTrain) {
-//  PoolExecute* exec = new PoolExecute();
-//  exec->batch.push_back(this);
-//  exec->bTrain = bTrain;
-//  return exec;
-//}
-//#else
 class PoolExecute : public Execute {
     public:
         bool bTrain;

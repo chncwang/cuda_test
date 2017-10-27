@@ -63,9 +63,13 @@ public:
 		parents.clear();
 	}
 
-	virtual inline void init(int ndim, dtype dropout) {
+	virtual inline void init(int ndim, dtype dropout, bool is_matrix_v_weak_ref = false) {
 		dim = ndim;
+#if USE_GPU
+		val.init(dim, 1, is_matrix_v_weak_ref);
+#else
 		val.init(dim, 1);
+#endif
 		loss.init(dim, 1);
 		mask.init(dim, 1);
 		if (dropout > 0 && dropout <= 1) {
