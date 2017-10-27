@@ -36,7 +36,6 @@ class DEVICE {
     public:
         cnmemDevice_t device;
     public:
-        //static void initial() { device.numStreams = 0;device.streams = NULL; device.streamSizes = NULL; }
         static cnmemDevice_t& getInstance() {
             static DEVICE D;
             return D.device;
@@ -50,17 +49,23 @@ class gpu_matrix
 {
     // public:
     // Device *dev;
+    private:
+        bool is_v_weak_ref = false;
     public:
         dtype *v;
         int row, col, size;
     public:
         gpu_matrix();
         ~gpu_matrix();
-        void init(int r, int c);
+        void init(int r, int c, bool b_is_v_weak_ref = false);
         gpu_matrix(dtype* v_data, size_t r, size_t c);
         void delloc();
         void resize(int r, int c);
         // void delloc() { cudaFree(v); }
+        void set_v(dtype* outv) {
+            assert(is_v_weak_ref && col == 1);
+            v = outv;
+        }
         inline void zero() { if(v) cudaMemset((void*)v, 0, size * sizeof(dtype)); }
         void zeros();
         void ones();
@@ -84,12 +89,8 @@ class gpu_matrix
         inline dtype* operator[](const int icol){ return v + icol*row; }
         inline const dtype* operator[](const int icol)const{ return v+icol*row; }
         void transpose(const gpu_matrix &rhs); 
-        // void transpose();
 
-        //
         void add(const gpu_matrix &rhs, dtype scale);
-        //
-
         void add(const gpu_matrix &a, const gpu_matrix &b);
         void sub(const gpu_matrix &a, const gpu_matrix &b);
         void multiply(const gpu_matrix &a, const gpu_matrix &b);

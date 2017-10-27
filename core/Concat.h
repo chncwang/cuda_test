@@ -44,98 +44,21 @@ class ConcatNode : public Node {
 
             degree = 0;
             nSize = ins.size();
+#if USE_GPU
+            int offset = 0;
+            for (int i = 0; i < nSize; ++i) {
+                ins[i]->addParent(this);
+                ins[i]->val.v = val.v + offset;
+                offset += ins[i]->dim;
+            }
+#else
             for (int i = 0; i < nSize; ++i) {
                 ins[i]->addParent(this);
             }
+#endif
 
             cg->addNode(this);
         }
-
-
-        void forward(Graph *cg, PNode x1, PNode x2) {
-            ins.clear();
-            ins.push_back(x1);
-            ins.push_back(x2);
-
-            degree = 0;
-            for (int i = 0; i < 2; ++i) {
-                ins[i]->addParent(this);
-            }
-
-            cg->addNode(this);
-            nSize = 2;
-        }
-
-        void forward(Graph *cg, PNode x1, PNode x2, PNode x3) {
-            ins.clear();
-            ins.push_back(x1);
-            ins.push_back(x2);
-            ins.push_back(x3);
-
-            degree = 0;
-            for (int i = 0; i < 3; ++i) {
-                ins[i]->addParent(this);
-            }
-
-            cg->addNode(this);
-            nSize = 3;
-        }
-
-        void forward(Graph *cg, PNode x1, PNode x2, PNode x3, PNode x4) {
-            ins.clear();
-            ins.push_back(x1);
-            ins.push_back(x2);
-            ins.push_back(x3);
-            ins.push_back(x4);
-
-            degree = 0;
-            for (int i = 0; i < 4; ++i) {
-                ins[i]->addParent(this);
-            }
-
-            cg->addNode(this);
-            nSize = 4;
-        }
-
-        void forward(Graph *cg, PNode x1, PNode x2, PNode x3, PNode x4, PNode x5) {
-            ins.clear();
-            ins.push_back(x1);
-            ins.push_back(x2);
-            ins.push_back(x3);
-            ins.push_back(x4);
-            ins.push_back(x5);
-
-            degree = 0;
-            for (int i = 0; i < 5; ++i) {
-                ins[i]->addParent(this);
-            }
-
-            cg->addNode(this);
-
-            nSize = 5;
-        }
-
-        void forward(Graph *cg, PNode x1, PNode x2, PNode x3, PNode x4, PNode x5, PNode x6) {
-            ins.clear();
-            ins.push_back(x1);
-            ins.push_back(x2);
-            ins.push_back(x3);
-            ins.push_back(x4);
-            ins.push_back(x5);
-            ins.push_back(x6);
-
-            degree = 0;
-            for (int i = 0; i < 6; ++i) {
-                ins[i]->addParent(this);
-            }
-
-            cg->addNode(this);
-
-            nSize = 6;
-        }
-
-
-
     public:
         inline PExecute generate(bool bTrain);
 
@@ -158,19 +81,23 @@ class ConcatNode : public Node {
                 return;
             }
 
+#ifndef USE_GPU
             int offset = 0;
-            for (int i = 0; i < nSize; ++i) {
+            for (int i = 0; i<nSize; ++i) {
                 val.big_copy_small(offset, ins[i]->val);
                 offset += inDims[i];
             }
+#endif
         }
 
         void backward() {
+#ifndef USE_GPU
             int offset = 0;
-            for (int i = 0; i < nSize; ++i) {
+            for (int i = 0; i< nSize; ++i) {
                 ins[i]->loss.short_add_long(ins[i]->loss, loss, offset);
                 offset += inDims[i];
             }
+#endif
         }
 };
 

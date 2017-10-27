@@ -101,21 +101,21 @@ gpu_matrix::~gpu_matrix(){
 }
 
 void gpu_matrix::delloc(){
-    if(v){
+    if(v && !is_v_weak_ref){
         cnmemStatus_t status = cnmemFree(v, NULL);
         if (status != CNMEM_STATUS_SUCCESS) {
-//            std::cout << cnmemGetErrorString(status) << std::endl;
-//            abort(); TODO
+            // TODO
         }
     }
     v = NULL;
 }
 
-void gpu_matrix::init(int r, int c){
+void gpu_matrix::init(int r, int c, bool b_is_v_weak_ref){
+    is_v_weak_ref = b_is_v_weak_ref;
     row = r;
     col = c;
-    size = row * col;
-    if(size != 0){
+    size = row * col; // TODO this member should be removed
+    if(size != 0 && !is_v_weak_ref){
         assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&v, sizeof(dtype) * size, NULL));
         zero();
     }
