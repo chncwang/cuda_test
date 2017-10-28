@@ -9,8 +9,8 @@
 template<typename T>
 void CopyGlobalArray(T *dest, T *src, int length);
 
-//template<typename T>
-//void SumGlobalArray(T** arr, int size, int vec_length);
+void SumGlobalSArray(float** arr, float* sum, int size, int vec_length);
+void SumGlobalDArray(double** arr, double* sum, int size, int vec_length);
 
 void TestCublasSum();
 

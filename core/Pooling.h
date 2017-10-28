@@ -12,6 +12,8 @@
 #include "MyLib.h"
 #include "Node.h"
 #include "Graph.h"
+#include "cuda_util.h"
+#include <typeinfo>
 
 
 class PoolNode : public Node {
@@ -193,11 +195,22 @@ class AvgPoolNode : public PoolNode {
             masks[0].assign((dtype)(1.0 / nSize));
 
             gpu_matrix t;
+            assert(val.col == 1);
+            assert(val.row > 0);
             t.init(val.row, val.col);
+            dtype **vs = (dtype**)malloc(sizeof(dtype*) * nSize);
             for (int i = 0; i < nSize; ++i) {
-                val.add(val, ins[i]->val);
+                vs[i] = ins[i]->val.v;
             }
-            val.multiply(masks[0], val);
+            if (typeid(dtype) == typeid(float)) {
+                SumGlobalSArray((float**)vs, (float*)t.v, nSize, val.row);
+            } else if (typeid(dtype) == typeid(double)) {
+                SumGlobalDArray((double**)vs, (double*)t.v, nSize, val.row);
+            } else {
+                abort();
+            }
+            free(vs);
+            val.multiply(masks[0], t);
 #else
             setMask();
             cpu_matrix t;
