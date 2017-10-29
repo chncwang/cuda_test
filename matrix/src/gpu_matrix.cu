@@ -12,18 +12,29 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/reduce.h>
 #include "cuda_util.h"
+#include <typeinfo>
 
 #define threadsize  32
 
 class CUBLAS_HANDLE {
     private:
         cublasHandle_t handle;
-        CUBLAS_HANDLE() { CCE(cublasCreate(&handle)); }
+        cublasHandle_t handle_device_mode;
+        CUBLAS_HANDLE() {
+            CCE(cublasCreate(&handle));
+            CCE(cublasCreate(&handle_device_mode));
+            cublasSetPointerMode(handle_device_mode, CUBLAS_POINTER_MODE_DEVICE);
+        }
         ~CUBLAS_HANDLE() { CCE(cublasDestroy(handle)); }
     public:
         static cublasHandle_t& getInstance() {
             static CUBLAS_HANDLE H;
             return H.handle;
+        }
+
+        static cublasHandle_t& getInstanceDeviceMode() {
+            static CUBLAS_HANDLE H;
+            return H.handle_device_mode;
         }
 };
 
@@ -1219,4 +1230,40 @@ void TestCublasSum() {
     for (int i = 0; i< 5; ++i) {
         PrintArr<<<1, 1>>>((double*)dest[i]);
     }
+}
+
+void SumGlobalSArray(float** arr, float* sum, int size, int vec_length) {
+    float *vecs;
+    assert(cnmemMalloc((void**)&vecs, sizeof(float) * size * vec_length, NULL) ==
+            CNMEM_STATUS_SUCCESS);
+    for (int i = 0; i< size; ++i) {
+        cublasScopy(CUBLAS_HANDLE::getInstance(), vec_length,
+                (float*)arr[i], 1, (float*)vecs + i, vec_length);
+    }
+
+    for (int i = 0; i<vec_length; ++i) {
+        cublasSasum(CUBLAS_HANDLE::getInstance(), vec_length,
+                (float*)vecs + i * vec_length, 1, (float*)&sum[i]);
+    }
+
+    cnmemStatus_t status = cnmemFree(vecs, NULL);
+    assert(status == CNMEM_STATUS_SUCCESS);
+}
+
+void SumGlobalDArray(double** arr, double* sum, int size, int vec_length) {
+    double *vecs;
+    assert(cnmemMalloc((void**)&vecs, sizeof(double) * size * vec_length, NULL) ==
+            CNMEM_STATUS_SUCCESS);
+    for (int i = 0; i< size; ++i) {
+        cublasDcopy(CUBLAS_HANDLE::getInstance(), vec_length, arr[i], 1,
+                vecs + i, size);
+    }
+
+    for (int i = 0; i<vec_length; ++i) {
+        cublasDasum(CUBLAS_HANDLE::getInstanceDeviceMode(), size,
+                vecs + i * size, 1, sum + i);
+    }
+
+    cnmemStatus_t status = cnmemFree(vecs, NULL);
+    assert(status == CNMEM_STATUS_SUCCESS);
 }
