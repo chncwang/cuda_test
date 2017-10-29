@@ -163,10 +163,20 @@ gpu_matrix& gpu_matrix::operator=(const cpu_matrix &rhs){
 }
 
 void gpu_matrix::add(const gpu_matrix &a, const gpu_matrix &b){
-    thrust::device_ptr<dtype> ptr0(v);
-    thrust::device_ptr<dtype> ptr1(a.v);
-    thrust::device_ptr<dtype> ptr2(b.v);
-    thrust::transform(ptr1, ptr1 + row * col, ptr2, ptr0, thrust::plus<dtype>());
+    dtype alpha = 1.0;
+    if (typeid(dtype) == typeid(float)) {
+        cublasScopy(CUBLAS_HANDLE::getInstance(), row * col, (float*)a.v, 1,
+                (float*)v, 1);
+        cublasSaxpy(CUBLAS_HANDLE::getInstance(), row * col, (float*)&alpha,
+                (float*)b.v, 1, (float*)v, 1);
+    } else if (typeid(dtype) == typeid(double)) {
+        cublasDcopy(CUBLAS_HANDLE::getInstance(), row * col, (double*)a.v, 1,
+                (double*)v, 1);
+        cublasDaxpy(CUBLAS_HANDLE::getInstance(), row * col, (double*)&alpha,
+                (double*)b.v, 1, (double*)v, 1);
+    } else {
+        abort();
+    }
 }
 
 void gpu_matrix::sub(const gpu_matrix &a, const gpu_matrix &b){
