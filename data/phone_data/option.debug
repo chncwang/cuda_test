@@ -1,6 +1,6 @@
 outBest = .debug
 maxInstance = -1
-maxIter = 1
+maxIter = 10
 hiddenSize = 100
 verboseIter = 1
 dropProb = -1

@@ -18,7 +18,9 @@
 class CUBLAS_HANDLE {
     private:
         cublasHandle_t handle;
-        CUBLAS_HANDLE() { CCE(cublasCreate(&handle)); }
+        CUBLAS_HANDLE() {
+            CCE(cublasCreate(&handle));
+        }
         ~CUBLAS_HANDLE() { CCE(cublasDestroy(handle)); }
     public:
         static cublasHandle_t& getInstance() {

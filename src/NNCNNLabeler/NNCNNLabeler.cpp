@@ -215,10 +215,6 @@ void Classifier::train(const string& trainFile, const string& devFile, const str
     int devNum = devExamples.size(), testNum = testExamples.size();
 
     auto _start_ = std::chrono::high_resolution_clock::now();
-
-#if USE_GPU
-    cudaProfilerStart();
-#endif
     for (int iter = 0; iter < m_options.maxIter; ++iter) {
         if(iter == 20){
             auto _end_ = std::chrono::high_resolution_clock::now();
@@ -371,9 +367,6 @@ void Classifier::train(const string& trainFile, const string& devFile, const str
             std::cout << "368" << std::endl;
         }
     }
-#if USE_GPU
-    cudaProfilerStop();
-#endif
 
     auto _end_ = std::chrono::high_resolution_clock::now();
     std::cout << "TOTAL_TIME:"  << std::chrono::duration<double>(_end_ - _start_).count() << std::endl;
@@ -490,9 +483,6 @@ int main(int argc, char* argv[]) {
     else {
         the_classifier.test(testFile, outputFile, modelFile);
     }
-    //getchar();
-    //test(argv);
-    //ah.write_values(std::cout);
     #if USE_GPU
                 FinalizeGPU();
     #endif
