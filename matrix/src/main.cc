@@ -8,7 +8,7 @@
 using namespace std;
 
 int main() {
-    InitGPU(DEVICE::getInstance(), 4000000000, 0);
+    InitGPU(DEVICE::getInstance(), 4000000000, 1);
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
@@ -16,6 +16,9 @@ int main() {
     cudaEventRecord(stop);
     cudaDeviceSynchronize();
     float milliseconds = 0;
+
+    TestSumGlobalDarray();
+
     cudaEventElapsedTime(&milliseconds, start, stop);
     cout << "time:" << milliseconds << endl;
 }

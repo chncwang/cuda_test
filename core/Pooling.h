@@ -202,13 +202,11 @@ class AvgPoolNode : public PoolNode {
             for (int i = 0; i < nSize; ++i) {
                 vs[i] = ins[i]->val.v;
             }
-            if (typeid(dtype) == typeid(float)) {
+#if USE_FLOAT
                 SumGlobalSArray((float**)vs, (float*)t.v, nSize, val.row);
-            } else if (typeid(dtype) == typeid(double)) {
+#else
                 SumGlobalDArray((double**)vs, (double*)t.v, nSize, val.row);
-            } else {
-                abort();
-            }
+#endif
             free(vs);
             val.multiply(masks[0], t);
 #else

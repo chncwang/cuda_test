@@ -655,29 +655,25 @@ void gpu_matrix::mat_combine_from_vecs(const vector<gpu_matrix*> &ins){
 
     assert(col == ins.size());
     void *ptr;
-
-    assert(CNMEM_STATUS_SUCCESS == cnmemMalloc((void**)&ptr, sizeof(dtype*) * ins_size, NULL));	
-
-    dtype** srcs = static_cast<dtype**>(ptr);
-
-
-    vector<dtype*> locs(ins_size);
-
+    assert(CNMEM_STATUS_SUCCESS == cnmemMalloc(&ptr, sizeof(dtype*) * ins_size, NULL));	
+    dtype** srcs = (dtype**)(ptr);
+    dtype** locs = (dtype**)malloc(ins_size * sizeof(dtype*));
+    assert(locs != NULL);
     for(int i=0; i<ins_size; i++){
-
         locs[i] = ins[i]->v;
     }
 
-    CCE(cudaMemcpy(srcs, &(locs)[0], sizeof(dtype**) * ins_size, cudaMemcpyHostToDevice));
-
+    CCE(cudaMemcpy(srcs, locs, sizeof(dtype*) * ins_size, cudaMemcpyHostToDevice));
 
     dim3 dimBlock( threadsize,  threadsize);
     dim3 dimGrid(n_blocks(row,  threadsize), n_blocks(col,  threadsize));
 
     _mat_combine_from_vecs<<<dimGrid , dimBlock>>>(v, srcs, row, col);
     cudaError_t err = cudaGetLastError();
-    if (err != cudaSuccess) 
+    if (err != cudaSuccess) {
         printf("Error: %s\n", cudaGetErrorString(err));
+        abort();
+    }
     assert(CNMEM_STATUS_SUCCESS == cnmemFree(ptr, NULL));
 }
 
@@ -1171,10 +1167,12 @@ __global__ void InitArr(float *arr) {
     arr[threadIdx.x] = threadIdx.x / 10.0;
 }
 
-__global__ void PrintArr(double *arr) {
-    for (int i = 0; i< 100; ++i) {
-        printf("%f\n", arr[i]);
+__global__ void PrintArr(double *arr, int size) {
+    printf("size:%d\n", size);
+    for (int i = 0; i< size; ++i) {
+        printf("%f, ", arr[i]);
     }
+    printf("\n");
 }
 
 void TestCudaUtil() {
@@ -1214,8 +1212,25 @@ void TestCublasSum() {
         }
     }
     for (int i = 0; i< 5; ++i) {
-        PrintArr<<<1, 1>>>((double*)dest[i]);
+        PrintArr<<<1, 1>>>((double*)dest[i], 100);
     }
+}
+
+dtype *GetSumCalVector() {
+    static dtype *vec;
+    static const int MAX_LENGTH = 1000;
+    if (vec == NULL) {
+        assert(cnmemMalloc((void**)&vec, sizeof(dtype) * MAX_LENGTH, NULL) ==
+                CNMEM_STATUS_SUCCESS);
+        dtype *mem = (dtype*)malloc(sizeof(dtype*) * MAX_LENGTH);
+        for (int i =  0; i < MAX_LENGTH; ++i) {
+            mem[i] = 1.0;
+        }
+        CCE(cudaMemcpy(vec, mem, sizeof(dtype*) * MAX_LENGTH,
+                    cudaMemcpyHostToDevice));
+        free(mem);
+    }
+    return vec;
 }
 
 void SumGlobalSArray(float** arr, float* sum, int size, int vec_length) {
@@ -1241,15 +1256,38 @@ void SumGlobalDArray(double** arr, double* sum, int size, int vec_length) {
     assert(cnmemMalloc((void**)&vecs, sizeof(double) * size * vec_length, NULL) ==
             CNMEM_STATUS_SUCCESS);
     for (int i = 0; i< size; ++i) {
-        cublasDcopy(CUBLAS_HANDLE::getInstance(), vec_length, arr[i], 1,
-                vecs + i, size);
+        cublasDcopy(CUBLAS_HANDLE::getInstance(), vec_length, arr[i],
+                1, vecs + i * vec_length, 1);
     }
-
-    for (int i = 0; i<vec_length; ++i) {
-        cublasDasum(CUBLAS_HANDLE::getInstanceDeviceMode(), size,
-                vecs + i * size, 1, sum + i);
-    }
+    double * sum_cal_vec = (double*)GetSumCalVector();
+    static double alpha = 1.0;
+    static double beta = 0.0;
+    cublasDgemv(CUBLAS_HANDLE::getInstance(), CUBLAS_OP_N,
+            vec_length, size, &alpha, vecs, vec_length, sum_cal_vec, 1, &beta,
+            sum, 1);
 
     cnmemStatus_t status = cnmemFree(vecs, NULL);
     assert(status == CNMEM_STATUS_SUCCESS);
+}
+
+__global__ void SetArr(double* arr, int x, int n) {
+    for (int i = 0; i < n; ++i) {
+        arr[i] = 1.0;
+    }
+}
+
+void TestSumGlobalDarray() {
+    int N = 100;
+    double **arr = (double**)malloc(N * sizeof(double**));
+    for (int i = 0; i< N; ++i) {
+        assert(cnmemMalloc((void**)(arr + i), sizeof(double*) * N, NULL) == CNMEM_STATUS_SUCCESS);
+        SetArr<<<1, 1>>>(arr[i], i, N);
+    }
+
+    double *result;
+    cnmemStatus_t t = cnmemMalloc((void**)&result, sizeof(double) * N, NULL);
+    SumGlobalDArray(arr, result, N, N);
+    cout << "result:" << endl;
+    PrintArr<<<1, 1>>>(result, N);
+    cudaDeviceSynchronize();
 }
