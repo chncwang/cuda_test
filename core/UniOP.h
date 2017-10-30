@@ -248,8 +248,6 @@ class UniExecute :public Execute {
 
     public:
         inline void  forward() {
-            ofstream out("time", ios::app);
-            auto start = std::chrono::high_resolution_clock::now();
 #if USE_GPU
             int count = batch.size();
             x.init(inDim, count);
@@ -322,13 +320,9 @@ class UniExecute :public Execute {
                 ptr->forward_drop(bTrain);
             }
 #endif	
-            auto end = std::chrono::high_resolution_clock::now();
-            out << "uni-forward " << std::chrono::duration<double>(end - start).count() << endl; 
         }
 
         inline void backward() {
-            ofstream out("time", ios::app);
-            auto start = std::chrono::high_resolution_clock::now();
 #if USE_GPU
             int count = batch.size();
             gpu_matrix lx, lty, ly;
@@ -401,8 +395,6 @@ class UniExecute :public Execute {
                 ptr->in->loss.vec_add_mat(ptr->in->loss, lx, idx);
             }
 #endif
-            auto end = std::chrono::high_resolution_clock::now();
-            out << "uni-backward " << std::chrono::duration<double>(end - start).count() << endl; 
         }
 
 };
