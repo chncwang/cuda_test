@@ -55,23 +55,13 @@ public:
         grad.zero();
     }
 
-    inline void updateAdagrad(dtype alpha, dtype reg, dtype eps) {
-        /*if (val.col > 1 && val.row > 1)grad.vec() = grad.vec() + val.vec() * reg;
-        aux_square.vec() = aux_square.vec() + grad.vec().square();
-        val.vec() = val.vec() - grad.vec() * alpha / (aux_square.vec() + eps).sqrt();*/
-		if (val.col > 1 && val.row > 1) grad.special_add(grad, 1, val, reg);
-		aux_square.special_add1(aux_square, grad);
-		val.special_add2(val, grad, aux_square, alpha, eps);
+    void updateAdagrad(dtype alpha, dtype reg, dtype eps) {
+        if (val.col > 1 && val.row > 1) {
+            grad.special_add(grad, 1, val, reg);
+        }
+        aux_square.special_add1(aux_square, grad);
+        val.special_add2(val, grad, aux_square, alpha, eps);
     }
-
-    //inline void updateAdam(dtype belta1, dtype belta2, dtype alpha, dtype reg, dtype eps) {
-    //    if (val.col > 1 && val.row > 1)grad.vec() = grad.vec() + val.vec() * reg;
-    //    aux_mean.vec() = belta1 * aux_mean.vec() + (1 - belta1) * grad.vec();
-    //    aux_square.vec() = belta2 * aux_square.vec() + (1 - belta2) * grad.vec().square();
-    //    dtype lr_t = alpha * sqrt(1 - pow(belta2, iter + 1)) / (1 - pow(belta1, iter + 1));
-    //    val.vec() = val.vec() - aux_mean.vec() * lr_t / (aux_square.vec() + eps).sqrt();
-    //    iter++;
-    //}
 
     inline void randpoint(int& idx, int &idy) {
         //select indexes randomly

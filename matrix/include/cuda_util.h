@@ -12,6 +12,8 @@ void CopyGlobalArray(T *dest, T *src, int length);
 void SumGlobalSArray(float** arr, float* sum, int size, int vec_length);
 void SumGlobalDArray(double** arr, double* sum, int size, int vec_length);
 
+void HostPrintArr(double *arr, int size);
+
 void TestCublasSum();
 
 void TestCudaUtil();

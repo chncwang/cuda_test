@@ -201,14 +201,22 @@ class AvgPoolNode : public PoolNode {
             dtype **vs = (dtype**)malloc(sizeof(dtype*) * nSize);
             for (int i = 0; i < nSize; ++i) {
                 vs[i] = ins[i]->val.v;
+                t.add(t, ins[i]->val);
             }
+            cout << "add by normal:" << endl;
+            HostPrintArr((double*)t.v, val.row);
+
 #if USE_FLOAT
-                SumGlobalSArray((float**)vs, (float*)t.v, nSize, val.row);
+            SumGlobalSArray((float**)vs, (float*)t.v, nSize, val.row);
 #else
-                SumGlobalDArray((double**)vs, (double*)t.v, nSize, val.row);
+            SumGlobalDArray((double**)vs, (double*)t.v, nSize, val.row);
 #endif
             free(vs);
+            cout << "add by multiply:" << endl;
+            HostPrintArr((double*)t.v, val.row);
             val.multiply(masks[0], t);
+            cout << "after mask" << endl;
+            HostPrintArr((double*)val.v, val.row);
 #else
             setMask();
             cpu_matrix t;

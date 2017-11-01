@@ -1175,6 +1175,11 @@ __global__ void PrintArr(double *arr, int size) {
     printf("\n");
 }
 
+void HostPrintArr(double *arr, int size) {
+    PrintArr<<<1, 1>>>(arr, size);
+    cudaDeviceSynchronize();
+}
+
 void TestCudaUtil() {
     void *dest, *src;
     assert(cnmemMalloc(&dest, 100 * sizeof(double), NULL) == CNMEM_STATUS_SUCCESS);
@@ -1222,11 +1227,11 @@ dtype *GetSumCalVector() {
     if (vec == NULL) {
         assert(cnmemMalloc((void**)&vec, sizeof(dtype) * MAX_LENGTH, NULL) ==
                 CNMEM_STATUS_SUCCESS);
-        dtype *mem = (dtype*)malloc(sizeof(dtype*) * MAX_LENGTH);
+        dtype *mem = (dtype*)malloc(sizeof(dtype) * MAX_LENGTH);
         for (int i =  0; i < MAX_LENGTH; ++i) {
             mem[i] = 1.0;
         }
-        CCE(cudaMemcpy(vec, mem, sizeof(dtype*) * MAX_LENGTH,
+        CCE(cudaMemcpy(vec, mem, sizeof(dtype) * MAX_LENGTH,
                     cudaMemcpyHostToDevice));
         free(mem);
     }
@@ -1260,6 +1265,9 @@ void SumGlobalDArray(double** arr, double* sum, int size, int vec_length) {
                 1, vecs + i * vec_length, 1);
     }
     double * sum_cal_vec = (double*)GetSumCalVector();
+    cout <<"sum_cal_vec:" << endl;
+    PrintArr<<<1,1>>>(sum_cal_vec, vec_length);
+    cudaDeviceSynchronize();
     static double alpha = 1.0;
     static double beta = 0.0;
     cublasDgemv(CUBLAS_HANDLE::getInstance(), CUBLAS_OP_N,
@@ -1272,7 +1280,7 @@ void SumGlobalDArray(double** arr, double* sum, int size, int vec_length) {
 
 __global__ void SetArr(double* arr, int x, int n) {
     for (int i = 0; i < n; ++i) {
-        arr[i] = 1.0;
+        arr[i] = (double)i;
     }
 }
 

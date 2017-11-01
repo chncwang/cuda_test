@@ -45,7 +45,6 @@ class ModelUpdate {
         }
     }
 
-
     inline void update() {
         for (int idx = 0; idx < _params.size(); idx++) {
             _params[idx]->updateAdagrad(_alpha, _reg, _eps);
@@ -72,33 +71,6 @@ class ModelUpdate {
 
         update();
     }
-
-   /* inline void updateAdam() {
-        for (int idx = 0; idx < _params.size(); idx++) {
-            _params[idx]->updateAdam(_belta1, _belta2, _alpha, _reg, _eps);
-            _params[idx]->clearGrad();
-        }
-    }*/
-
-    //inline void updateAdam(dtype maxScale) {
-    //    dtype sumNorm = 0.0;
-    //    for (int idx = 0; idx < _params.size(); idx++) {
-    //        sumNorm += _params[idx]->squareGradNorm();
-    //    }
-    //    if (std::isnan(double(sumNorm)) || sumNorm > 1e20) { //too large
-    //        clearGrad();
-    //        return;
-    //    }
-    //    dtype norm = sqrt(sumNorm);
-    //    if (maxScale > 0 && norm > maxScale) {
-    //        dtype scale = maxScale / norm;
-    //        for (int idx = 0; idx < _params.size(); idx++) {
-    //            _params[idx]->rescaleGrad(scale);
-    //        }
-    //    }
-
-    //    updateAdam();
-    //}
 
     inline void rescaleGrad(dtype scale) {
         for (int idx = 0; idx < _params.size(); idx++) {

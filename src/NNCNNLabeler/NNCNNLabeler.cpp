@@ -245,7 +245,6 @@ void Classifier::train(const string& trainFile, const string& devFile, const str
                     std::cout << "current: " << idy + 1 << ", Cost = " << cost << ", Correct(%) = " << eval.getAccuracy()
                         << ", time = " << std::chrono::duration<double>(t_end_train - t_start_train).count() << std::endl;
                 }
-                //m_driver.checkgrad(subExamples, iter * inputSize + idy);
                 m_driver.updateModel();
             }
             {
@@ -276,6 +275,10 @@ void Classifier::train(const string& trainFile, const string& devFile, const str
                 }
 
                 m_driver.updateModel();
+                static int count;
+                if (++count > 10) {
+                    exit(0);
+                }
             }
 
             {
