@@ -14,15 +14,19 @@ int main() {
     cublasHandle_t handle;
     cublasCreate(&handle);
     for (auto dim : dims) {
-        dtype *gpu_vec_a = NewGPUVector(dim);
-        dtype *gpu_vec_b = NewGPUVector(dim);
+        dtype *cpu_vec_a = NewCPUVector(dim);
+        dtype *cpu_vec_b = NewCPUVector(dim);
+        dtype *cpu_vec_c = NewCPUVector(dim);
+        Mat mat_a = Mat(cpu_vec_a, dim, 1);
+        Mat mat_b = Mat(cpu_vec_b, dim, 1);
+        Mat mat_c = Mat(cpu_vec_c, dim, 1);
         cudaEvent_t start, stop;
         cudaEventCreate(&start);
         cudaEventCreate(&stop);
         cudaEventRecord(start);
 
         for (int i = 0; i < 1000000; ++i)
-            CUBLASAdd(handle, gpu_vec_a, gpu_vec_b, dim);
+            mat_c = mat_a + mat_b;
 
         cudaEventRecord(stop);
         float milliseconds = 0;
