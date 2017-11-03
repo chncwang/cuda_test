@@ -1176,6 +1176,7 @@ __global__ void GlobalAssignVector(dtype *vec, int index, dtype v) {
 }
 
 __global__ void GlobalPrintVector(dtype *vec, int dim) {
+    printf("size:%d\n", dim);
     for (int i = 0; i < dim; ++i) {
         printf("%f, ", vec[i]);
     }
@@ -1205,7 +1206,7 @@ void InitGPUVector(dtype *vec, int dim) {
 void InitCPUVector(dtype *vec, int dim) {
     static std::random_device rd;
     static std::mt19937 mt(rd());
-    static std::uniform_real_distribution<> dist(-10, 10);
+    static std::uniform_real_distribution<> dist(-1, 1);
     for (int i = 0; i < dim; ++i) {
         vec[i] = dist(mt);
     }
@@ -1228,4 +1229,12 @@ dtype *NewCPUVector(int dim) {
 void CUBLASAdd(cublasHandle_t handle, dtype *a, dtype *b, int dim) {
     static dtype alpha = 1.0;
     CALL_CUBLAS(axpy)(handle, dim, &alpha, a, 1, b, 1);
+}
+
+void CUBLASProduct(cublasHandle_t handle, dtype *vec, dtype *mat,
+        dtype *result, int row, int col) {
+    static dtype alpha = 1.0;
+    static dtype beta = 0.0;
+    CALL_CUBLAS(gemv)(handle, CUBLAS_OP_N, row, col, &alpha, mat, row, vec, 1,
+            &beta, result, 1);
 }

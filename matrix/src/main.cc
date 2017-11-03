@@ -5,32 +5,36 @@
 #include "gpu_matrix.h"
 #include <iostream>
 #include <array>
+#include <utility>
+#include <chrono>
 
 using namespace std;
 
 int main() {
-    std::vector<int> dims = {50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000};
+    std::vector<pair<int, int>> dims = {
+        make_pair(50, 50),
+        make_pair(100, 100),
+        make_pair(200, 200),
+        make_pair(2000, 100),
+        make_pair(5000, 100),
+        make_pair(10000, 100)
+    };
     InitGPU(DEVICE::getInstance(), 6000000000, 1);
     cublasHandle_t handle;
     cublasCreate(&handle);
     for (auto dim : dims) {
-        dtype *cpu_vec_a = NewCPUVector(dim);
-        dtype *cpu_vec_b = NewCPUVector(dim);
-        dtype *cpu_vec_c = NewCPUVector(dim);
-        Mat mat_a = Mat(cpu_vec_a, dim, 1);
-        Mat mat_b = Mat(cpu_vec_b, dim, 1);
-        Mat mat_c = Mat(cpu_vec_c, dim, 1);
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-        cudaEventRecord(start);
+        dtype *gpu_vec_a = NewGPUVector(dim.first);
+        dtype *gpu_vec_b = NewGPUVector(dim.first * dim.second);
+        dtype *gpu_vec_c = NewGPUVector(dim.first);
 
-        for (int i = 0; i < 1000000; ++i)
-            mat_c = mat_a + mat_b;
+        cout << "begin cal" << endl;
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+        for (int i = 0; i < 1000000; ++i) {
+            CUBLASProduct(handle, gpu_vec_a, gpu_vec_b, gpu_vec_c, dim.first,
+                    dim.second);
+        }
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-        cudaEventRecord(stop);
-        float milliseconds = 0;
-        cudaEventElapsedTime(&milliseconds, start, stop);
-        cout << "dim:" << dim << " time:" << milliseconds << endl;
+        cout << "dim:" << dim.first << "," << dim.second << " time:" << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000 << endl;
     }
 }
