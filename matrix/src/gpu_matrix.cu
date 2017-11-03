@@ -12,8 +12,15 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/reduce.h>
 #include "cuda_util.h"
+#include <random>
 
 #define threadsize  32
+
+#ifdef USE_FLOAT
+#define CALL_CUBLAS(func) cublasS##func
+#else
+#define CALL_CUBLAS(func) cublasD##func
+#endif
 
 class CUBLAS_HANDLE {
     private:
@@ -1164,57 +1171,61 @@ void CopyGlobalArray(T *dest, T *src, int length) {
     CopyElement<<<1, length * sizeof(T)>>>(dest_int, src_int);
 }
 
-__global__ void InitArr(double *arr) {
-    arr[threadIdx.x] = threadIdx.x / 10.0;
+__global__ void GlobalAssignVector(dtype *vec, int index, dtype v) {
+    vec[index] = v;
 }
 
-__global__ void InitArr(float *arr) {
-    arr[threadIdx.x] = threadIdx.x / 10.0;
+__global__ void GlobalPrintVector(dtype *vec, int dim) {
+    for (int i = 0; i < dim; ++i) {
+        printf("%f, ", vec[i]);
+    }
+    printf("\n");
 }
 
-__global__ void PrintArr(double *arr) {
-    for (int i = 0; i< 100; ++i) {
-        printf("%f\n", arr[i]);
+void PrintGPUVector(dtype *vec, int dim) {
+    GlobalPrintVector<<<1, 1>>>(vec, dim);
+}
+
+void PrintCPUVector(dtype *vec, int dim) {
+    for (int i = 0; i < dim; ++i ) {
+        cout << vec[dim] << ", ";
+    }
+    cout << endl;
+}
+
+void InitGPUVector(dtype *vec, int dim) {
+    static std::random_device rd;
+    static std::mt19937 mt(rd());
+    static std::uniform_real_distribution<> dist(-10, 10);
+    for (int i = 0; i < dim; ++i) {
+        GlobalAssignVector<<<1, 1>>>(vec, i, dist(mt));
     }
 }
 
-void TestCudaUtil() {
-    void *dest, *src;
-    assert(cnmemMalloc(&dest, 100 * sizeof(double), NULL) == CNMEM_STATUS_SUCCESS);
-    assert(cnmemMalloc(&src, 100 * sizeof(double), NULL)==CNMEM_STATUS_SUCCESS);
-    InitArr<<<1, 100>>>((double*)src);
-    vector<cublasHandle_t> handles;
-    handles.reserve(1000000);
-
-    for (int i =0; i<10;++i) {
-        cublasHandle_t h;
-        cublasCreate(&h);
-        handles.push_back(h);
-    }
-    for (int i = 0; i<1000000; ++i) {
-        cublasDcopy(handles[i % 10], 100, (double*)src, 1, (double*)dest, 1);
+void InitCPUVector(dtype *vec, int dim) {
+    static std::random_device rd;
+    static std::mt19937 mt(rd());
+    static std::uniform_real_distribution<> dist(-10, 10);
+    for (int i = 0; i < dim; ++i) {
+        vec[i] = dist(mt);
     }
 }
 
-void TestCublasSum() {
-    void *src;
-    void **dest = (void**)malloc(sizeof(void*) * 5);
-    for (int i = 0; i<5; ++i) {
-        assert(cnmemMalloc(&(dest[i]), 100 * sizeof(double), NULL) == CNMEM_STATUS_SUCCESS);
-    }
-    assert(cnmemMalloc(&src, 500 * sizeof(double), NULL)==CNMEM_STATUS_SUCCESS);
-    InitArr<<<1, 500>>>((double*)src);
-    for (int i = 0; i<5; ++i) {
-        InitArr<<<1, 100>>>((double*)dest[i]);
-    }
+dtype *NewGPUVector(int dim) {
+    dtype *v;
+    assert(cnmemMalloc((void**)&v, sizeof(dtype) * dim, NULL) ==
+            CNMEM_STATUS_SUCCESS);
+    InitGPUVector(v, dim);
+    return v;
+}
 
-    double alpha = 1.0;
-    for (int k = 0; k < 100000; ++k) {
-        for (int i = 0; i<5; ++i) {
-            cublasDaxpy(CUBLAS_HANDLE::getInstance(), 100, &alpha, (double*)src, 1, (double*)dest[i], 1);
-        }
-    }
-    for (int i = 0; i< 5; ++i) {
-        PrintArr<<<1, 1>>>((double*)dest[i]);
-    }
+dtype *NewCPUVector(int dim) {
+    dtype *v = (dtype*)malloc(sizeof(dtype) * dim);
+    InitCPUVector(v, dim);
+    return v;
+}
+
+void CUBLASAdd(cublasHandle_t handle, dtype *a, dtype *b, int dim) {
+    static dtype alpha = 1.0;
+    CALL_CUBLAS(axpy)(handle, dim, &alpha, a, 1, b, 1);
 }

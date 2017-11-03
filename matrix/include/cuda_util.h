@@ -5,17 +5,27 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include <helper_cuda.h>
+#if USE_FLOAT
+typedef  float dtype;
+#else
+typedef  double dtype;
+#endif
 
 template<typename T>
 void CopyGlobalArray(T *dest, T *src, int length);
 
-//template<typename T>
-//void SumGlobalArray(T** arr, int size, int vec_length);
+void PrintGPUVector(dtype *vec, int dim);
 
-void TestCublasSum();
+void PrintCPUVector(dtype *vec, int dim);
 
-void TestCudaUtil();
+void InitGPUVector(dtype *vec, int dim);
 
-void TestMultiply();
+void InitCPUVector(dtype *vec, int dim);
+
+dtype *NewGPUVector(int dim);
+
+dtype *NewCPUVector(int dim);
+
+void CUBLASAdd(cublasHandle_t handle, dtype *a, dtype *b, int dim);
 
 #endif

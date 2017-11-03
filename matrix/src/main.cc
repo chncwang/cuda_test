@@ -4,18 +4,29 @@
 #include <cassert>
 #include "gpu_matrix.h"
 #include <iostream>
+#include <array>
 
 using namespace std;
 
 int main() {
-    InitGPU(DEVICE::getInstance(), 4000000000, 0);
-    cudaEvent_t start, stop;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventRecord(start);
-    cudaEventRecord(stop);
-    cudaDeviceSynchronize();
-    float milliseconds = 0;
-    cudaEventElapsedTime(&milliseconds, start, stop);
-    cout << "time:" << milliseconds << endl;
+    std::vector<int> dims = {50, 100, 200, 500, 1000, 2000};
+    InitGPU(DEVICE::getInstance(), 4000000000, 1);
+    cublasHandle_t handle;
+    cublasCreate(&handle);
+    for (auto dim : dims) {
+        dtype *gpu_vec_a = NewGPUVector(dim);
+        dtype *gpu_vec_b = NewGPUVector(dim);
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
+        cudaEventRecord(start);
+
+        for (int i = 0; i < 1000000; ++i)
+            CUBLASAdd(handle, gpu_vec_a, gpu_vec_b, dim);
+
+        cudaEventRecord(stop);
+        float milliseconds = 0;
+        cudaEventElapsedTime(&milliseconds, start, stop);
+        cout << "time:" << milliseconds << endl;
+    }
 }
