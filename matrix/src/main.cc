@@ -5,6 +5,7 @@
 #include "gpu_matrix.h"
 #include <iostream>
 #include <array>
+#include <chrono>
 
 using namespace std;
 
@@ -16,17 +17,13 @@ int main() {
     for (auto dim : dims) {
         dtype *gpu_vec_a = NewGPUVector(dim);
         dtype *gpu_vec_b = NewGPUVector(dim);
-        cudaEvent_t start, stop;
-        cudaEventCreate(&start);
-        cudaEventCreate(&stop);
-        cudaEventRecord(start);
+        cout << "begin cal" << endl;
+        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
         for (int i = 0; i < 1000000; ++i)
             CUBLASAdd(handle, gpu_vec_a, gpu_vec_b, dim);
+        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-        cudaEventRecord(stop);
-        float milliseconds = 0;
-        cudaEventElapsedTime(&milliseconds, start, stop);
-        cout << "dim:" << dim << " time:" << milliseconds << endl;
+        cout << "dim:" << dim << " time:" << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000<< endl;
     }
 }
