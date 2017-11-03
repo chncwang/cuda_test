@@ -30,8 +30,8 @@ int main() {
         cout << "begin cal" << endl;
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         for (int i = 0; i < 1000000; ++i) {
-            CUBLASProduct(handle, gpu_vec_a, gpu_vec_b, gpu_vec_c, dim.first,
-                    dim.second);
+            CUBLASProduct(handle, gpu_vec_a, gpu_vec_b, gpu_vec_c, dim.second,
+                    dim.first);
         }
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
