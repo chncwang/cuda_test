@@ -27,7 +27,7 @@ dtype *NewGPUVector(int dim);
 dtype *NewCPUVector(int dim);
 
 void CUBLASAdd(cublasHandle_t handle, dtype *a, dtype *b, int dim);
-void CUBLASProduct(cublasHandle_t handle, dtype *vec, dtype *mat,
-        dtype *result, int row, int col);
+void CUBLASProduct(cublasHandle_t handle, dtype *a, dtype *b,
+        dtype *result, int m, int n, int k);
 
 #endif

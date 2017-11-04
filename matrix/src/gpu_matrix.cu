@@ -1239,9 +1239,16 @@ void CUBLASProduct(cublasHandle_t handle, dtype *vec, dtype *mat,
             &beta, result, 1);
 }
 
+void CUBLASProduct(cublasHandle_t handle, dtype *a, dtype *b,
+        dtype *result, int m, int n, int k) {
+    static dtype alpha = 1.0;
+    static dtype beta = 0.0;
+    CALL_CUBLAS(gemm)(handle, CUBLAS_OP_N, CUBLAS_OP_N, m, n, k, &alpha, a, m, b, k, &beta, result, m);
+}
+
 void CUBLASProductBatch(cublasHandle_t handle, dtype *vec[], dtype *mat[],
         dtype *result[], int n, int row, int col) {
     static dtype alpha = 1.0;
     static dtype beta = 0.0;
-//    CALL_CUBLAS(gemBatched)(handle, CUBLAS_OP_N, CUBLAS_OP_N, row, 1, col
+//    CALL_CUBLAS(gemBatched)(handle, CUBLAS_OP_N, CUBLAS_OP_N, row, 1, col, 
 }
