@@ -22,20 +22,48 @@ int main() {
     cublasCreate(&handle);
     using std::get;
     for (auto dim : dims) {
-        int m = get<0>(dim);
+        int row = get<0>(dim);
         int n = get<1>(dim);
-        int k = get<2>(dim);
-        dtype *gpu_vec_a = NewGPUVector(m * k);
-        dtype *gpu_vec_b = NewGPUVector(n * k);
-        dtype *gpu_vec_c = NewGPUVector(m * n);
+        int col = get<2>(dim);
+        dtype **matrix_arr = (dtype**)malloc(n *sizeof(dtype*));
+        assert(matrix_arr != NULL);
+        for (int i = 0; i< n; ++i) {
+            matrix_arr[i] = NewGPUVector(row * col);
+        }
+        dtype **gpu_matrix_arr;
+        assert(cnmemMalloc((void**)&gpu_matrix_arr, n * sizeof(dtype*), NULL) ==
+                CNMEM_STATUS_SUCCESS);
+        CCE(cudaMemcpy(gpu_matrix_arr, matrix_arr, n * sizeof(dtype*),
+                    cudaMemcpyHostToDevice));
+
+        dtype **vec_arr = (dtype**)malloc(n * sizeof(dtype*));
+        for (int i = 0; i< n; ++i) {
+            vec_arr[i] = NewGPUVector(col);
+        }
+        dtype **gpu_vec_arr;
+        assert(cnmemMalloc((void**)&gpu_vec_arr, n * sizeof(dtype*), NULL) ==
+                CNMEM_STATUS_SUCCESS);
+        CCE(cudaMemcpy(gpu_vec_arr, vec_arr, n * sizeof(dtype*),
+                    cudaMemcpyHostToDevice));
+
+        dtype **result_arr = (dtype**)malloc(n * sizeof(dtype*));
+        for (int i = 0; i< n; ++i) {
+            result_arr[i] = NewGPUVector(col);
+        }
+        dtype **gpu_result_arr;
+        assert(cnmemMalloc((void**)&gpu_result_arr, n * sizeof(dtype*), NULL) ==
+                CNMEM_STATUS_SUCCESS);
+        CCE(cudaMemcpy(gpu_result_arr, result_arr, n * sizeof(dtype*),
+                    cudaMemcpyHostToDevice));
 
         cout << "begin cal" << endl;
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
         for (int i = 0; i < 1000000; ++i) {
-            CUBLASProduct(handle, gpu_vec_a, gpu_vec_b, gpu_vec_c, m, n, k);
+            CUBLASProductBatch(handle, (const dtype**)gpu_vec_arr,
+                    (const dtype**)gpu_matrix_arr, gpu_result_arr, n, row, col);
         }
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
-        cout << "dim:" << m << "," << n << "," << k << " time:" << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000 << endl;
+        cout << "dim:" << row << "," << col << "," << n << " time:" << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000 << endl;
     }
 }
