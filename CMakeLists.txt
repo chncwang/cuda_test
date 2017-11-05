@@ -52,11 +52,13 @@ if(USE_CUDA)
 endif()
 
 
+include_directories(cudarrays/include)
 include_directories(matrix/include)
 include_directories(matrix/cnmem/include)
 include_directories(eigen)
 include_directories(core)
 
+add_subdirectory(cudarrays)
 add_subdirectory(matrix)
 set(LIBS ${LIBS} matrix)
 add_subdirectory(src)

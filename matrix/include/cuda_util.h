@@ -5,6 +5,9 @@
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include <helper_cuda.h>
+#include <cudarrays/types.hpp>
+#include <cudarrays/launch.hpp>
+
 #if USE_FLOAT
 typedef  float dtype;
 #else
@@ -29,5 +32,9 @@ dtype *NewCPUVector(int dim);
 void CUBLASAdd(cublasHandle_t handle, dtype *a, dtype *b, int dim);
 void CUBLASProduct(cublasHandle_t handle, dtype *a, dtype *b,
         dtype *result, int m, int n, int k);
+void CUBLASProductBatch(cublasHandle_t handle, const dtype **vec,
+        const dtype **mat, dtype **result, int n, int row, int col);
+
+void cudarraysCopy();
 
 #endif
