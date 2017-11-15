@@ -13,9 +13,9 @@ using namespace std;
 
 int main() {
     std::vector<tuple<int, int, int>> dims = {
-        make_tuple(100, 20, 100),
-        make_tuple(100, 50, 100),
-        make_tuple(100, 100, 100)
+        make_tuple(50, 1, 50),
+        make_tuple(100, 1, 100),
+        make_tuple(200, 1, 200),
     };
     InitGPU(DEVICE::getInstance(), 6000000000, 1);
     cublasHandle_t handle;
