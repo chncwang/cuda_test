@@ -1,0 +1,27 @@
+aux_source_directory(. LIB_SRC)
+aux_source_directory(${CMAKE_SOURCE_DIR}/include LIB_INCLUDE)
+
+include_directories(${CMAKE_SOURCE_DIR}/include)
+
+set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
+
+list(APPEND CUDA_NVCC_FLAGS "-rdc" "true")
+
+if(CUDA_VERSION_MAJOR EQUAL "7" AND
+   CUDA_VERSION_MINOR EQUAL "5")
+   list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
+endif(CUDA_VERSION_MAJOR EQUAL "7" AND
+      CUDA_VERSION_MINOR EQUAL "5")
+
+list(APPEND CUDA_NVCC_FLAGS ${GPU_ARCH})
+if(CUDA_DEBUG)
+    set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -G")
+endif(CUDA_DEBUG)
+
+cuda_add_library(${CMAKE_IMPORT_LIBRARY_PREFIX}cudarrays STATIC cuda_vars.cu ${LIB_SRC} ${LIB_INCLUDE})
+
+set(CUDARRAYS_LIB ${CMAKE_IMPORT_LIBRARY_PREFIX}cudarrays CACHE INTERNAL "")
+
+install(TARGETS ${CMAKE_IMPORT_LIBRARY_PREFIX}cudarrays
+        ARCHIVE DESTINATION lib
+        COMPONENT libraries)

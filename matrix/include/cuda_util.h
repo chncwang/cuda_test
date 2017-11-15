@@ -18,4 +18,6 @@ void TestCudaUtil();
 
 void TestMultiply();
 
+void TestCudarraysCopy();
+
 #endif

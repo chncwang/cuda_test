@@ -12,6 +12,8 @@
 #include <thrust/transform_reduce.h>
 #include <thrust/reduce.h>
 #include "cuda_util.h"
+#include "cudarrays/types.hpp"
+#include "cudarrays/launch.hpp"
 
 #define threadsize  32
 
@@ -1217,4 +1219,7 @@ void TestCublasSum() {
     for (int i = 0; i< 5; ++i) {
         PrintArr<<<1, 1>>>((double*)dest[i]);
     }
+}
+
+void TestCudarraysCopy() {
 }

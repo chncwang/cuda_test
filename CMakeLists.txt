@@ -53,6 +53,7 @@ endif()
 
 include_directories(matrix/include)
 include_directories(matrix/cnmem/include)
+include_directories(cudarrays/include/)
 include_directories(eigen)
 include_directories(core)
 

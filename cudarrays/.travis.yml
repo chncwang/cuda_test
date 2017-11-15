@@ -1,0 +1,72 @@
+# Use a build matrix to do two builds in parallel:
+# one using CMake, and one using make.
+env:
+  matrix:
+    - BUILD_DEBUG
+    - BUILD_RELEASE
+
+  global:
+    # The next declration is the encrypted COVERITY_SCAN_TOKEN, created
+    #   via the "travis encrypt" command using the project repo's public key
+    - secure: "f+SIOLTKZL34L/+lcORyEm35zpEFMB2JcxPwhEgcQspBkpt/jWUBHSOVtwLk4Q1IVFmazHSQZdvG5hlceHLA9nNZ5IVaNPjL2vuLJC+PX8SpWW+sVpcVGggoUMp6qhZKshdXe0/2OCo2UrpEaMFXDJiakTYiv6Ioe8Fs0dZ6MIk="
+
+addons:
+  coverity_scan:
+    project:
+      name: "cudarrays/cudarrays"
+      description: "CUDArrays build submitted via Travis CI"
+    notification_email: javier.cabezas@gmail.com
+    build_command_prepend: "mkdir build_coverity && cd build_coverity && ../configure --with-gcc=/usr/bin/g++-4.9 --with-cuda=$HOME/cuda && make clean"
+    build_command:   "make -j 4"
+    branch_pattern: coverity_scan
+
+  apt:
+    sources:
+      - ubuntu-toolchain-r-test
+
+    packages:
+      - gcc-4.9
+      - g++-4.9
+
+# Enable container-based infrastructure
+sudo: false
+
+language: cpp
+
+# Cache Ubuntu apt packages.
+cache: apt
+
+compiler: gcc
+
+before_install:
+  - export NUM_THREADS=4
+  - export SCRIPTS=./scripts/travis
+
+install:
+  - $SCRIPTS/install_build_env.sh
+
+before_script:
+  - export CUDA_HOME=$HOME/cuda
+  - export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/usr/local/lib:$CUDA_HOME/lib64
+  - export PATH=$CUDA_HOME/bin:$PATH
+  - export PATH=$HOME/cmake-3.4.3-Linux-x86_64/bin/:$PATH
+
+script: if [ ${COVERITY_SCAN_BRANCH} != 1 ]; then $SCRIPTS/build.sh; fi
+
+notifications:
+# Emails are sent to the committer's git-configured email address by default,
+# but only if they have access to the repository.  To enable Travis on your
+# public fork of Caffe, just go to travis-ci.org and flip the switch on for
+# your Caffe fork.  To configure your git email address, use:
+#     git config --global user.email me@example.com
+  email:
+    on_success: always
+    on_failure: always
+
+# IRC notifications disabled by default.
+# Uncomment next 5 lines to send notifications to chat.freenode.net#caffe
+#   irc:
+#     channels:
+#       - "chat.freenode.net#caffe"
+#     template:
+#       - "%{repository}/%{branch} (%{commit} - %{author}): %{message}"
