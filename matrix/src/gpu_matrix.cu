@@ -734,7 +734,7 @@ __global__ void _vec_accumulate_from_mat(Real* trgs, Real* src, int row, int col
     int src_index = i + j * row;
 
     if (i < row && j < col){
-        m_atomicAdd((double*)(trgs+i), (double)src[src_index]);
+        //m_atomicAdd((double*)(trgs+i), (double)src[src_index]);
     }
 }
 
@@ -837,7 +837,7 @@ __global__ void _sparse_to_dense_block_add(dtype* trg, dtype** srcs, int *idx, i
     int j = blockIdx.y * blockDim.y + threadIdx.y; // col-index.
 
     if (i<bsize && j<n){
-        m_atomicAdd((double*)(trg + idx[j]*bsize + i),(double)srcs[j][i]);
+        //m_atomicAdd((double*)(trg + idx[j]*bsize + i),(double)srcs[j][i]);
     }
 }
 
