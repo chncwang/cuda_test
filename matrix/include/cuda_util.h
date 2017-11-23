@@ -10,7 +10,6 @@ typedef  float dtype;
 #else
 typedef  double dtype;
 #endif
-
 template<typename T>
 void CopyGlobalArray(T *dest, T *src, int length);
 

@@ -1,4 +1,5 @@
 #include "cuda_util.h"
+#include "custom_kernel.cuh"
 #include <cuda_profiler_api.h>
 #include "cnmem.h"
 #include <cassert>
@@ -22,7 +23,7 @@ int main() {
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
         for (int i = 0; i < 1000000; ++i) {
-            cublasSaxpy(handle, dim, &alpha, gpu_vec_a, 1, gpu_vec_b, 1);
+            n3ldg_kernel::CopyArray(gpu_vec_a, gpu_vec_b, dim);
         }
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
