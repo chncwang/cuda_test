@@ -14,16 +14,27 @@ int main() {
     InitGPU(DEVICE::getInstance(), 6000000000, 1);
     cublasHandle_t handle;
     cublasCreate(&handle);
+    float alpha = 1.0;
     for (auto dim : dims) {
-        dtype *gpu_vec_a = NewGPUVector(dim);
-        dtype *gpu_vec_b = NewGPUVector(dim);
+        float *gpu_vec_a = NewGPUVector(dim);
+        float *gpu_vec_b = NewGPUVector(dim);
         cout << "begin cal" << endl;
-        std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
+        float sum = 0;
+        int iter = 100000;
+        for (int i = 0; i < iter; ++i) {
+            cudaEvent_t start, stop;
+            cudaEventCreate(&start);
+            cudaEventCreate(&stop);
+            cudaEventRecord(start);
+            cublasSaxpy(handle, dim, &alpha, gpu_vec_a, 1, gpu_vec_b, 1);
+            cudaEventRecord(stop);
+            cudaEventSynchronize(stop);
+            float mill;
+            cudaEventElapsedTime(&mill, start, stop);
+            sum += mill;
+            cudaDeviceSynchronize();
+        }
 
-        for (int i = 0; i < 1000000; ++i)
-            CUBLASAdd(handle, gpu_vec_a, gpu_vec_b, dim);
-        std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
-
-        cout << "dim:" << dim << " time:" << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000<< endl;
+        cout << "dim:" << dim << " time:" << sum * 1000 / iter  << endl;
     }
 }
