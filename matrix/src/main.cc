@@ -23,7 +23,7 @@ int main() {
         std::chrono::steady_clock::time_point begin = std::chrono::steady_clock::now();
 
         for (int i = 0; i < 1000000; ++i) {
-            n3ldg_kernel::CopyArray(gpu_vec_a, gpu_vec_b, dim);
+            N3LDGCopyArray(gpu_vec_a, gpu_vec_b, dim);
         }
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 

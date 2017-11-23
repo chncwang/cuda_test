@@ -1229,3 +1229,20 @@ void CUBLASAdd(cublasHandle_t handle, dtype *a, dtype *b, int dim) {
     static dtype alpha = 1.0;
     CALL_CUBLAS(axpy)(handle, dim, &alpha, a, 1, b, 1);
 }
+constexpr int THREAD_COUNT_PER_BLOCK = 1000;
+constexpr int MAX_BLOCK_COUNT = 56;
+
+int BlockCount(int size) {
+    int n = (size + THREAD_COUNT_PER_BLOCK - 1) / THREAD_COUNT_PER_BLOCK;
+    return n > MAX_BLOCK_COUNT ? MAX_BLOCK_COUNT : n;
+}
+
+__global__ void Copy(float *src, float *dest, int len) {
+    int index = blockDim.x * blockIdx.x + threadIdx.x;
+    if (index < len)
+        dest[index] = src;
+}
+
+void N3LDGCopyArray(float *src, float *dest, int len) {
+    Copy<<<BlockCount(len) ,THREAD_COUNT_PER_BLOCK>>>(src, dest, len);
+}

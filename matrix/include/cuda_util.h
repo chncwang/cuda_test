@@ -27,4 +27,6 @@ dtype *NewCPUVector(int dim);
 
 void CUBLASAdd(cublasHandle_t handle, dtype *a, dtype *b, int dim);
 
+void N3LDGCopyArray(float *src, float *dest, int len);
+
 #endif
