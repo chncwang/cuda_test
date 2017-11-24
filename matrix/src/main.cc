@@ -47,7 +47,6 @@ int main() {
                 for (int j = 0; j < count; ++j) {
                     N3LDGTanh(gpu_vec_a.at(j), gpu_vec_b.at(j), dim);
                 }
-                cudaDeviceSynchronize();
                 cudaEventRecord(stop);
                 cudaEventSynchronize(stop);
                 float mill;
