@@ -1239,8 +1239,9 @@ int BlockCount(int size) {
 
 __global__ void Copy(float *src, float *dest, int len) {
     int index = blockDim.x * blockIdx.x + threadIdx.x;
-    if (index < len)
+    for (int i = index; i < len; i+= blockDim.x * gridDim.x) {
         dest[index] = src[index];
+    }
 }
 
 void N3LDGCopyArray(float *src, float *dest, int len) {
