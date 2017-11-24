@@ -11,7 +11,8 @@
 using namespace std;
 
 int main() {
-    std::vector<int> dims = {1000000};
+    std::vector<int> dims = {50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000,
+        50000, 100000, 200000, 500000, 1000000};
     InitGPU(DEVICE::getInstance(), 4000000000, 1);
     cublasHandle_t handle;
     cublasCreate(&handle);
@@ -28,6 +29,6 @@ int main() {
         std::chrono::steady_clock::time_point end = std::chrono::steady_clock::now();
 
         cout << "dim:" << dim << " time:" << std::chrono::duration_cast<std::chrono::microseconds>(end - begin).count() / 1000<< endl;
-        //PrintGPUVector(gpu_vec_b, 9);
+        //PrintGPUVector(gpu_vec_b, 10);
     }
 }
