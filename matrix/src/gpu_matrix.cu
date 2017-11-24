@@ -1249,7 +1249,8 @@ void N3LDGCopyArray(float *src, float *dest, int len) {
 
 __global__ void N3LDGKernelTanh(float *src, float *dest, int len) {
     int index = blockDim.x * blockIdx.x + threadIdx.x;
-    if (index < len) {
+    int step = blockDim.x * gridDim.x;
+    for (int i = index; i < len; i += step) {
         dest[index] = tanh(src[index]);
     }
 }
