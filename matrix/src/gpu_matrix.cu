@@ -1229,7 +1229,7 @@ void CUBLASAdd(cublasHandle_t handle, dtype *a, dtype *b, int dim) {
     static dtype alpha = 1.0;
     CALL_CUBLAS(axpy)(handle, dim, &alpha, a, 1, b, 1);
 }
-constexpr int THREAD_COUNT_PER_BLOCK = 1000;
+constexpr int THREAD_COUNT_PER_BLOCK = 1024;
 constexpr int MAX_BLOCK_COUNT = 56;
 
 int BlockCount(int size) {
