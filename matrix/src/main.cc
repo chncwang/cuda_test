@@ -40,7 +40,11 @@ int main() {
             std::chrono::steady_clock::time_point begin =
                 std::chrono::steady_clock::now();
 
-            for (int i = 0; i < 1000000; ++i) {
+            for (int i = 0; i < 100000; ++i) {
+                for (int j = 0; j < count; ++j) {
+                    N3LDGTanh(gpu_vec_a.at(j), gpu_vec_b.at(j), dim);
+                }
+                cudaDeviceSynchronize();
             }
             std::chrono::steady_clock::time_point end =
                 std::chrono::steady_clock::now();
