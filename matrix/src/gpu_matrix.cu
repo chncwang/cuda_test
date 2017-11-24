@@ -1246,3 +1246,14 @@ __global__ void Copy(float *src, float *dest, int len) {
 void N3LDGCopyArray(float *src, float *dest, int len) {
     Copy<<<BlockCount(len) ,THREAD_COUNT_PER_BLOCK>>>(src, dest, len);
 }
+
+__global__ void N3LDGKernelTanh(float *src, float *dest, int len) {
+    int index = blockDim.x * blockIdx.x + threadIdx.x;
+    if (index < len) {
+        dest[index] = tanh(src[index]);
+    }
+}
+
+void N3LDGTanh(float *src, float *dest, int len) {
+    N3LDGKernelTanh<<<BlockCount(len) ,THREAD_COUNT_PER_BLOCK>>>(src, dest, len);
+}
