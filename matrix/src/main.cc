@@ -11,7 +11,7 @@ using namespace std;
 
 int main() {
     std::vector<int> dims = {50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 40000};
-    InitGPU(DEVICE::getInstance(), 6000000000, 0);
+    InitGPU(DEVICE::getInstance(), 6000000000, 1);
     cublasHandle_t handle;
     cublasCreate(&handle);
     float alpha = 1.0;
