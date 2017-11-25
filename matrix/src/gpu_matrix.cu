@@ -85,8 +85,7 @@ void InitGPU(cnmemDevice_t &device, size_t mem_size, int device_id)
     device.size = mem_size;
     cudaSetDevice(device_id);
     std::cout << "device id " << device_id << std::endl;
-    assert(CNMEM_STATUS_SUCCESS == cnmemInit(1, &device, CNMEM_FLAGS_CANNOT_GROW));
-    cudaSetDevice(device_id);
+    //assert(CNMEM_STATUS_SUCCESS == cnmemInit(1, &device, CNMEM_FLAGS_CANNOT_GROW));
 }
 
 void FinalizeGPU()
@@ -1213,8 +1212,7 @@ void InitCPUVector(dtype *vec, int dim) {
 
 dtype *NewGPUVector(int dim) {
     dtype *v;
-    assert(cnmemMalloc((void**)&v, sizeof(dtype) * dim, NULL) ==
-            CNMEM_STATUS_SUCCESS);
+    assert(cudaMalloc((void**)&v, sizeof(dtype) * dim) == cudaSuccess);
     InitGPUVector(v, dim);
     return v;
 }
@@ -1230,6 +1228,7 @@ void CUBLASAdd(cublasHandle_t handle, dtype *a, dtype *b, int dim) {
     CALL_CUBLAS(axpy)(handle, dim, &alpha, a, 1, b, 1);
 }
 constexpr int THREAD_COUNT_PER_BLOCK = 1024;
+constexpr int THREAD_COUNT_PER_WRAP = 32;
 constexpr int MAX_BLOCK_COUNT = 56;
 
 int BlockCount(int size) {
@@ -1259,4 +1258,35 @@ __global__ void N3LDGKernelTanh(float *src, float *dest, int len) {
 
 void N3LDGTanh(float *src, float *dest, int len) {
     N3LDGKernelTanh<<<BlockCount(len) ,THREAD_COUNT_PER_BLOCK>>>(src, dest, len);
+}
+
+__global__ void N3LDGKernelTanh(float **src, float **dest, int len, int count) {
+    float *x = dest[0];
+    //x[0] = 1;
+//    int thread_count_per_arr = (len / THREAD_COUNT_PER_WRAP + 1) *
+//        THREAD_COUNT_PER_WRAP;
+//    int index = blockDim.x * blockIdx.x + threadIdx.x;
+//    if (index == 300) {
+//    printf("thread count per arr:%d\n", thread_count_per_arr);
+//    printf("index:%d\n", index);
+//    int step = blockDim.x * gridDim.x / thread_count_per_arr;
+//    printf("step:%d\n", step);
+//    int count_index = index / thread_count_per_arr;
+//    printf("count_index:%d\n", count_index);
+//    for (int i = count_index; i < count; i += step) {
+//        int arr_index = index % thread_count_per_arr;
+//        printf("arr index:%d\n", arr_index);
+//        if (arr_index < len) {
+//            dest[i][arr_index] = tanh(src[i][arr_index]);
+//        }
+//    }
+//    }
+}
+
+void N3LDGTanh(float **src, float **dest, int len, int count) {
+    assert(len <= MAX_BLOCK_COUNT * THREAD_COUNT_PER_BLOCK);
+    int block_count = BlockCount(len / THREAD_COUNT_PER_WRAP * THREAD_COUNT_PER_WRAP * count);
+    std::cout <<"block_count:" << block_count << std::endl;
+    //N3LDGKernelTanh<<<block_count, THREAD_COUNT_PER_BLOCK>>>(src, dest, len, count);
+    N3LDGKernelTanh<<<1, 1>>>(src, dest, len, count);
 }

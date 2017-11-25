@@ -10,50 +10,55 @@
 
 using namespace std;
 
-std::vector<float*> NewGPUVectors(int count, int dim) {
-    std::vector<float*> result;
+float** NewGPUVectors(int count, int dim) {
+    float**  result = (float**)malloc(count * sizeof(float*));
     for (int i = 0; i<count; ++i) {
         float * vec = NewGPUVector(dim);
-        result.push_back(vec);
+        result[i] = vec;
     }
     return result;
 }
 
-void ReleaseGPUVectors(std::vector<float *>* vec) {
-    for (float *v : *vec) {
-        cnmemFree(v, NULL);
-    }
+float **ToGpuVectorArray(float** vec, int len) {
+    float **result;
+    int size = len * sizeof(float*);
+    assert(cudaSuccess == cudaMalloc((void **)&result, size));
+    assert(cudaMemcpy(result, vec, size, cudaMemcpyHostToDevice) ==
+            cudaSuccess);
+    return result;
 }
 
 int main() {
-    std::vector<int> dims = {50, 100, 200, 500, 1000};
-    std::vector<int> counts = {10, 20, 50, 100, 200, 500, 1000};
+    std::vector<int> dims = {50/* , 100, 200, 500, 1000*/};
+    std::vector<int> counts = {10/*, 20, 50, 100, 200, 500, 1000*/};
     InitGPU(DEVICE::getInstance(), 4000000000, 1);
     cublasHandle_t handle;
     cublasCreate(&handle);
     float alpha = 1.0;
     for (auto dim : dims) {
         for (auto count : counts) {
-            auto gpu_vec_a = NewGPUVectors(count, dim);
-            auto gpu_vec_b = NewGPUVectors(count, dim);
+            float** gpu_vec_a = NewGPUVectors(count, dim);
+            float **a = ToGpuVectorArray(gpu_vec_a, count);
+            float** gpu_vec_b = NewGPUVectors(count, dim);
+            float **b = ToGpuVectorArray(gpu_vec_b, count);
             cout << "begin cal" << endl;
             float sum = 0;
-            int iter = 1000;
+            int iter = 1;
             for (int i = 0; i < iter; ++i) {
-                cudaEvent_t start, stop;
-                cudaEventCreate(&start);
-                cudaEventCreate(&stop);
-                cudaEventRecord(start);
-                for (int j = 0; j < count; ++j) {
-                    N3LDGTanh(gpu_vec_a.at(j), gpu_vec_b.at(j), dim);
-                }
-                cudaEventRecord(stop);
-                cudaEventSynchronize(stop);
+                //cudaEvent_t start, stop;
+                //cudaEventCreate(&start);
+                //cudaEventCreate(&stop);
+                //cudaEventRecord(start);
+                N3LDGTanh(a, b, dim, count);
+                //cudaEventRecord(stop);
+                //cudaEventSynchronize(stop);
                 float mill;
-                cudaEventElapsedTime(&mill, start, stop);
+                //cudaEventElapsedTime(&mill, start, stop);
                 sum += mill;
                 cudaDeviceSynchronize();
             }
+            PrintGPUVector(gpu_vec_b[0], 10);
+            cudaDeviceSynchronize();
             cout << "dim:" << dim << " count:" <<count << " time:" << sum * 1000 / iter  << endl;
         }
     }
