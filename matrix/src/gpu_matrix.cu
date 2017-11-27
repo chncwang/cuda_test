@@ -1175,6 +1175,7 @@ __global__ void GlobalAssignVector(dtype *vec, int index, dtype v) {
 }
 
 __global__ void GlobalPrintVector(dtype *vec, int dim) {
+    printf("GlobalPrintVector:");
     for (int i = 0; i < dim; ++i) {
         printf("%f, ", vec[i]);
     }
@@ -1183,6 +1184,20 @@ __global__ void GlobalPrintVector(dtype *vec, int dim) {
 
 void PrintGPUVector(dtype *vec, int dim) {
     GlobalPrintVector<<<1, 1>>>(vec, dim);
+    cudaDeviceSynchronize();
+}
+
+__global__ void N3LDGKernelPrintVector(void **vec, int dim) {
+    printf("N3LDGKernelPrintVector: dim %d\n", dim);
+    for (int i = 0; i < dim; ++i) {
+        printf("%p, ", vec[i]);
+    }
+    printf("\n");
+}
+
+void PrintGPUVector(void **vec, int dim) {
+    N3LDGKernelPrintVector<<<1, 1>>>(vec, dim);
+    cudaDeviceSynchronize();
 }
 
 void PrintCPUVector(dtype *vec, int dim) {
@@ -1214,6 +1229,8 @@ dtype *NewGPUVector(int dim) {
     dtype *v;
     assert(cudaMalloc((void**)&v, sizeof(dtype) * dim) == cudaSuccess);
     InitGPUVector(v, dim);
+    GlobalPrintVector<<<1, 1>>>(v, dim);
+    cudaDeviceSynchronize();
     return v;
 }
 
@@ -1261,25 +1278,26 @@ void N3LDGTanh(float *src, float *dest, int len) {
 }
 
 __global__ void N3LDGKernelTanh(float **src, float **dest, int len, int count) {
-    float *x = dest[0];
-    //x[0] = 1;
+    for (int i = 0; i < count; ++i) {
+        for (int j = 0; j < len; ++j) {
+            dest[i][j] = 12;
+        }
+    }
 //    int thread_count_per_arr = (len / THREAD_COUNT_PER_WRAP + 1) *
 //        THREAD_COUNT_PER_WRAP;
 //    int index = blockDim.x * blockIdx.x + threadIdx.x;
-//    if (index == 300) {
-//    printf("thread count per arr:%d\n", thread_count_per_arr);
-//    printf("index:%d\n", index);
+//    //printf("thread count per arr:%d\n", thread_count_per_arr);
+//    //printf("index:%d\n", index);
 //    int step = blockDim.x * gridDim.x / thread_count_per_arr;
-//    printf("step:%d\n", step);
+//    //printf("step:%d\n", step);
 //    int count_index = index / thread_count_per_arr;
-//    printf("count_index:%d\n", count_index);
+//    //printf("count_index:%d\n", count_index);
 //    for (int i = count_index; i < count; i += step) {
 //        int arr_index = index % thread_count_per_arr;
-//        printf("arr index:%d\n", arr_index);
+//        //printf("arr index:%d\n", arr_index);
 //        if (arr_index < len) {
 //            dest[i][arr_index] = tanh(src[i][arr_index]);
 //        }
-//    }
 //    }
 }
 

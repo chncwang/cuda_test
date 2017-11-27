@@ -14,6 +14,7 @@ template<typename T>
 void CopyGlobalArray(T *dest, T *src, int length);
 
 void PrintGPUVector(dtype *vec, int dim);
+void PrintGPUVector(void **vec, int dim);
 
 void PrintCPUVector(dtype *vec, int dim);
 
